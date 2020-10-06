@@ -85,7 +85,7 @@ func (pg *PGLayer) SetEventLogEnvName(id uuid.UUID, name string) error {
 	if _, err := tx.Exec(q, name, id); err != nil {
 		return errors.Wrap(err, "error setting eventlog env name")
 	}
-	q = `UPDATE qa_environments SET event_ids = event_ids || $1::uuid WHERE name = $2;`
+	q = `UPDATE qa_environments SET event_ids = event_ids || $1::uuid WHERE name = $2 AND NOT $1::uuid = ANY(event_ids);`
 	if _, err := tx.Exec(q, id, name); err != nil {
 		return errors.Wrap(err, "error setting environment event IDs")
 	}
@@ -274,7 +274,10 @@ func (pg *PGLayer) GetEventStatus(id uuid.UUID) (*models.EventStatusSummary, err
 // GetEventLogsWithStatusByEnvName gets all event logs for an environment including Status
 func (pg *PGLayer) GetEventLogsWithStatusByEnvName(name string) ([]models.EventLog, error) {
 	var logs []models.EventLog
-	q := `SELECT ` + models.EventLog{}.ColumnsWithStatus() + ` FROM event_logs WHERE env_name = $1;`
+	q := `SELECT qa_environment_event_ids.event_id, ` + models.EventLog{}.ColumnsWithoutIDWithStatus() + ` FROM (
+		SELECT unnest(event_ids) AS event_id FROM qa_environments WHERE name = $1
+	) AS qa_environment_event_ids
+	JOIN event_logs ON qa_environment_event_ids.event_id = event_logs.id`
 	rows, err := pg.db.Query(q, name)
 	if err != nil {
 		if err == sql.ErrNoRows {
