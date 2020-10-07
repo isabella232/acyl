@@ -1,3 +1,4 @@
+{{- $servicePort := .Values.service.internalPort -}}
 {{- if .Values.ingress.argo }}
 apiVersion: extensions/v1beta1
 kind: Ingress
@@ -7,18 +8,19 @@ metadata:
     chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
   namespace: {{ .Values.namespace }}
   annotations:
-      kubernetes.io/ingress.class: 
+  {{- range $key, $value := .Values.ingress.annotations }}
+    {{ $key }}: {{ $value }}
+  {{- end }}
 spec:
   rules:
-    {{- if .Values.is_dqa }}
-    - host: {{ .Values.env_name }}-{{ .Values.ingress.argo_host }}
-    {{- else }}
-    - host: {{ .Values.ingress.argo_host }}
-    {{- end }}
+    {{- $serviceName := .Values.service.name -}}
+    {{- range $host := .Values.ingress.hosts }}
+    - host: {{ $host }}
       http:
-        paths:
+      	paths:
           - path: /
             backend:
-              serviceName: {{ .Values.service.name }}
-              servicePort: {{ .Values.service.internalPort }}
-{{- end }}
+              serviceName: {{ $serviceName }}
+              servicePort: {{ $servicePort }}
+    {{- end }}
+{{- end -}}
