@@ -70,6 +70,10 @@ service:
   type: ClusterIP
   internalPort: 4000
 ingress:
+  annotations:
+     kubernetes.io/ingress.class: foo
+  hosts:
+    - foo.bar 
   argo: true
   argo_host: foo.bar.com
   traefik:
