@@ -5,8 +5,8 @@ import (
 )
 
 type operationError struct {
-	inner        error
-	user, system bool
+	inner                   error
+	user, system, cancelled bool
 }
 
 func (oe operationError) Error() string {
@@ -34,6 +34,14 @@ func SystemError(err error) error {
 	return operationError{system: true, inner: err}
 }
 
+// CancelledError annotates err in such a way that IsCancelled() can be used further up in the callstack.
+func CancelledError(err error) error {
+	if err == nil {
+		return nil
+	}
+	return operationError{cancelled: true, inner: err}
+}
+
 // IsUserError finds the first nitro error in the chain and returns true if it is a user error.
 func IsUserError(err error) bool {
 	var e operationError
@@ -48,6 +56,15 @@ func IsSystemError(err error) bool {
 	var e operationError
 	if errors.As(err, &e) {
 		return e.system
+	}
+	return false
+}
+
+// IsCancelledError finds the first nitro error in the chain and returns true if it is an error caused by a cancelled context.
+func IsCancelledError(err error) bool {
+	var e operationError
+	if errors.As(err, &e) {
+		return e.cancelled
 	}
 	return false
 }
