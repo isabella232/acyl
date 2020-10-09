@@ -1,4 +1,3 @@
-{{- $servicePort := .Values.service.internalPort -}}
 {{- if .Values.ingress.argo }}
 apiVersion: extensions/v1beta1
 kind: Ingress
@@ -14,6 +13,7 @@ metadata:
 spec:
   rules:
     {{- $serviceName := .Values.service.name -}}
+    {{- $servicePort := .Values.service.internalPort -}}
     {{- range $host := .Values.ingress.hosts }}
     - host: {{ $host }}
       http:
