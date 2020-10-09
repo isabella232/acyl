@@ -91,6 +91,7 @@ const (
 	PendingStatus
 	DoneStatus
 	FailedStatus
+	CancelledStatus
 )
 
 type EventStatusType int
