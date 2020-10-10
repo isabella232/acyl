@@ -222,8 +222,6 @@ func (m *Manager) lockingOperation(ctx context.Context, repo string, pr uint, f 
 	}()
 	stop := make(chan struct{})
 	defer close(stop)
-	// TODO: Replace with thread-safe impl
-	cancelled := false
 	go func() {
 		select {
 		case np := <-preempt: // Lock got preempted, cancel action
@@ -244,22 +242,17 @@ func (m *Manager) lockingOperation(ctx context.Context, repo string, pr uint, f 
 	case opErr := <-ch:
 		err = opErr
 	case <-ctx.Done():
-		err = ctx.Err()
-		cancelled = true
+		err = nitroerrors.CancelledError(ctx.Err())
 	}
-	if err != nil {
+	if nitroerrors.IsCancelledError(err) {
+		eventlogger.GetLogger(ctx).SetCompletedStatus(models.CancelledStatus)
+	} else {
 		var ce metahelmlib.ChartError
 		if stdliberrors.As(err, &ce) {
 			m.log(ctx, "error returned was a ChartError")
 		}
-		if !cancelled {
-			eventlogger.GetLogger(ctx).SetFailedStatus(ce)
-		}
+		eventlogger.GetLogger(ctx).SetFailedStatus(ce)
 		m.log(ctx, "operation error (user: %v, sys: %v): %v: %v: %v", nitroerrors.IsUserError(err), nitroerrors.IsSystemError(err), repo, pr, err)
-	}
-	if cancelled {
-		eventlogger.GetLogger(ctx).SetCompletedStatus(models.CancelledStatus)
-		err = nitroerrors.CancelledError(err)
 	}
 	endop(fmt.Sprintf("success:%v", err == nil), fmt.Sprintf("user_error:%v", nitroerrors.IsUserError(err)), fmt.Sprintf("system_error:%v", nitroerrors.IsSystemError(err)))
 	return err
