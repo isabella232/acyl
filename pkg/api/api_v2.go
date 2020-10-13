@@ -133,6 +133,8 @@ func statusSummaryStatus(s models.EventStatus) string {
 		return "done"
 	case models.FailedStatus:
 		return "failed"
+	case models.CancelledStatus:
+		return "cancelled"
 	default:
 		return "default"
 	}
@@ -993,7 +995,7 @@ func (api *v2api) userEnvPodContainersHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 	v2enpc = V2EnvNamePodContainers{
-		Name: podname,
+		Name:       podname,
 		Containers: podContainers.Containers,
 	}
 	if err := json.NewEncoder(w).Encode(&v2enpc); err != nil {
