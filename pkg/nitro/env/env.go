@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"html/template"
 	"sort"
-	"sync"
 	"time"
 
 	"github.com/dollarshaveclub/acyl/pkg/ghapp"
@@ -204,25 +203,6 @@ func (m *Manager) setGithubCommitStatus(ctx context.Context, rd *models.RepoRevi
 	return cs, nil
 }
 
-type atomicBool struct {
-	sync.Mutex
-	b bool
-}
-
-func (ab *atomicBool) setTrue() {
-	ab.Lock()
-	ab.b = true
-	ab.Unlock()
-}
-
-func (ab *atomicBool) value() bool {
-	var val bool
-	ab.Lock()
-	val = ab.b
-	ab.Unlock()
-	return val
-}
-
 // lockingOperation sets up the lock and if successful executes f, releasing the lock afterward
 func (m *Manager) lockingOperation(ctx context.Context, repo string, pr uint, f func(ctx context.Context) error) (err error) {
 	ctx, cf := context.WithCancel(ctx)
@@ -258,15 +238,15 @@ func (m *Manager) lockingOperation(ctx context.Context, repo string, pr uint, f 
 	go func() {
 		ch <- f(ctx)
 	}()
-	cancelled := atomicBool{}
+	cancelled := false
 	select {
 	case opErr := <-ch:
 		err = opErr
 	case <-ctx.Done():
-		cancelled.setTrue()
+		cancelled = true
 	}
 	switch {
-	case cancelled.value():
+	case cancelled:
 		eventlogger.GetLogger(ctx).SetCompletedStatus(models.CancelledStatus)
 		err = nitroerrors.CancelledError(ctx.Err())
 	case err != nil:
