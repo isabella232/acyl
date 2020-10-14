@@ -265,11 +265,11 @@ func (m *Manager) lockingOperation(ctx context.Context, repo string, pr uint, f 
 	case <-ctx.Done():
 		cancelled.setTrue()
 	}
-	if cancelled.value() {
+	switch {
+	case cancelled.value():
 		eventlogger.GetLogger(ctx).SetCompletedStatus(models.CancelledStatus)
-		return nitroerrors.CancelledError(ctx.Err())
-	}
-	if err != nil {
+		err = nitroerrors.CancelledError(ctx.Err())
+	case err != nil:
 		var ce metahelmlib.ChartError
 		if stdliberrors.As(err, &ce) {
 			m.log(ctx, "error returned was a ChartError")
