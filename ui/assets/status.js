@@ -89,7 +89,7 @@ function updateConfig(cfg) {
             sicon.innerHTML = "\uf071";
             break;
         case "cancelled":
-            slinkbtnclass = "btn-dark";
+            slinkbtnclass = "btn-outline-light";
             sicon.innerHTML = "\uf05e";
         default:
             slinkbtnclass = "btn-warning";
