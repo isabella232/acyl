@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/dollarshaveclub/acyl/pkg/ghapp"
@@ -203,6 +204,25 @@ func (m *Manager) setGithubCommitStatus(ctx context.Context, rd *models.RepoRevi
 	return cs, nil
 }
 
+type atomicBool struct {
+	sync.Mutex
+	b bool
+}
+
+func (ab *atomicBool) setTrue() {
+	ab.Lock()
+	ab.b = true
+	ab.Unlock()
+}
+
+func (ab *atomicBool) value() bool {
+	var val bool
+	ab.Lock()
+	val = ab.b
+	ab.Unlock()
+	return val
+}
+
 // lockingOperation sets up the lock and if successful executes f, releasing the lock afterward
 func (m *Manager) lockingOperation(ctx context.Context, repo string, pr uint, f func(ctx context.Context) error) (err error) {
 	ctx, cf := context.WithCancel(ctx)
@@ -238,15 +258,18 @@ func (m *Manager) lockingOperation(ctx context.Context, repo string, pr uint, f 
 	go func() {
 		ch <- f(ctx)
 	}()
+	cancelled := atomicBool{}
 	select {
 	case opErr := <-ch:
 		err = opErr
 	case <-ctx.Done():
-		err = nitroerrors.CancelledError(ctx.Err())
+		cancelled.setTrue()
 	}
-	if nitroerrors.IsCancelledError(err) {
+	if cancelled.value() {
 		eventlogger.GetLogger(ctx).SetCompletedStatus(models.CancelledStatus)
-	} else {
+		return nitroerrors.CancelledError(ctx.Err())
+	}
+	if err != nil {
 		var ce metahelmlib.ChartError
 		if stdliberrors.As(err, &ce) {
 			m.log(ctx, "error returned was a ChartError")
