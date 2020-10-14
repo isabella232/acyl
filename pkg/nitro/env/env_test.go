@@ -18,6 +18,7 @@ import (
 	"github.com/dollarshaveclub/acyl/pkg/memfs"
 	"github.com/dollarshaveclub/acyl/pkg/models"
 	"github.com/dollarshaveclub/acyl/pkg/namegen"
+	nitroerrors "github.com/dollarshaveclub/acyl/pkg/nitro/errors"
 	"github.com/dollarshaveclub/acyl/pkg/nitro/meta"
 	"github.com/dollarshaveclub/acyl/pkg/nitro/metahelm"
 	"github.com/dollarshaveclub/acyl/pkg/nitro/metrics"
@@ -83,13 +84,15 @@ func TestLockingOperation(t *testing.T) {
 
 	ctx := eventlogger.NewEventLoggerContext(context.Background(), el)
 	err = m.lockingOperation(ctx, repo, pr, preemptedFunc)
+	cancelled := nitroerrors.IsCancelledError(err)
 	if err == nil {
 		t.Fatalf("expected preemption error")
 	}
-	if err != nil {
-		if strings.Contains(err.Error(), "timer expired") {
-			t.Fatalf("expected the context to be canceled before the timer expired")
-		}
+	if !cancelled {
+		t.Fatalf("expected error to be annotated as cancelled")
+	}
+	if strings.Contains(err.Error(), "timer expired") {
+		t.Fatalf("expected the context to be canceled before the timer expired")
 	}
 
 	pr++

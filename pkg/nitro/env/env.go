@@ -227,7 +227,6 @@ func (m *Manager) lockingOperation(ctx context.Context, repo string, pr uint, f 
 		case np := <-preempt: // Lock got preempted, cancel action
 			m.MC.Increment(mpfx+"lock_preempt", "triggering_repo:"+repo)
 			m.log(ctx, "operation preempted: %v: %v, %v", repo, pr, np)
-			eventlogger.GetLogger(ctx).SetCompletedStatus(models.FailedStatus)
 		case <-stop:
 		}
 		cf()
@@ -239,13 +238,18 @@ func (m *Manager) lockingOperation(ctx context.Context, repo string, pr uint, f 
 	go func() {
 		ch <- f(ctx)
 	}()
+	cancelled := false
 	select {
 	case opErr := <-ch:
 		err = opErr
 	case <-ctx.Done():
-		err = ctx.Err()
+		cancelled = true
 	}
-	if err != nil {
+	switch {
+	case cancelled:
+		eventlogger.GetLogger(ctx).SetCompletedStatus(models.CancelledStatus)
+		err = nitroerrors.CancelledError(ctx.Err())
+	case err != nil:
 		var ce metahelmlib.ChartError
 		if stdliberrors.As(err, &ce) {
 			m.log(ctx, "error returned was a ChartError")
@@ -642,7 +646,10 @@ func (m *Manager) delete(ctx context.Context, rd *models.RepoRevisionData, reaso
 
 	// use independent context for setting the status
 	err = m.DL.SetQAEnvironmentStatus(tracer.ContextWithSpan(context.Background(), span), env.Name, models.Destroyed)
-	return errors.Wrap(nitroerrors.SystemError(err), "error setting environment status")
+	if err != nil {
+		return errors.Wrap(nitroerrors.SystemError(err), "error setting environment status")
+	}
+	return nil
 }
 
 // deleteNamespace deletes a namespace and cleans up the database
