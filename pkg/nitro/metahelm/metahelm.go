@@ -305,7 +305,7 @@ func (ci ChartInstaller) BuildAndInstallChartsIntoExisting(ctx context.Context, 
 func (ci ChartInstaller) installOrUpgradeIntoExisting(ctx context.Context, env *EnvInfo, k8senv *models.KubernetesEnvironment, cl ChartLocations, upgrade bool) (err error) {
 	span, ctx := tracer.StartSpanFromContext(ctx, "chart_installer.install_or_upgrade")
 	if ci.kc == nil {
-		return nitroerrors.User(errors.New("k8s client is nil"))
+		return errors.New("k8s client is nil")
 	}
 	ci.dl.SetQAEnvironmentStatus(tracer.ContextWithSpan(context.Background(), span), env.Env.Name, models.Updating)
 	defer func() {

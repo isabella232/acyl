@@ -71,7 +71,6 @@ func buildid(envname, name string) string {
 
 // Completed returns if build for repo has completed along with outcome
 func (b *BuildBatch) Completed(envname, name string) (bool, error) {
-	fmt.Println("Completed")
 	b.outcomes.RLock()
 	defer b.outcomes.RUnlock()
 	err, ok := b.outcomes.completed[buildid(envname, name)]
