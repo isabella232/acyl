@@ -1,70 +1,69 @@
 package errors
 
-import (
-	"errors"
-)
+import "errors"
 
-type operationError struct {
-	inner                   error
-	user, system, cancelled bool
+// A UserError wraps an underlying error to annotate it as being caused by
+// user error. The underlying error string is returned directly, meaning the
+// annotation can be detected using errors.As without the annotation affecting
+// how the errors are communicated.
+type UserError struct {
+	error
 }
 
-func (oe operationError) Error() string {
-	return oe.inner.Error()
+// Error returns err's underlying error string.
+func (err UserError) Error() string {
+	return err.error.Error()
 }
 
-// Implement Unwrap so this error can be friendly for Go's errors.Is and errors.As implementations.
-func (oe operationError) Unwrap() error {
-	return oe.inner
+// Unwrap returns err's underlying error.
+func (err UserError) Unwrap() error {
+	return err.error
 }
 
-// UserError annotates err in such a way that IsUserError() can be used further up in the callstack.
-func UserError(err error) error {
+// User annotates err as a user error.
+func User(err error) error {
 	if err == nil {
 		return nil
 	}
-	return operationError{user: true, inner: err}
+	return UserError{err}
 }
 
-// SystemError annotates err in such a way that IsSystemError() can be used further up in the callstack.
-func SystemError(err error) error {
+// A CancelledError wraps an underlying error to annotite at as being caused by
+// the cancellation of a context. CancelledErrors are also annotated as
+// UserErrors.
+type CancelledError struct {
+	error
+}
+
+// Error returns err's underlying error string.
+func (err CancelledError) Error() string {
+	return err.error.Error()
+}
+
+// Unwrap returns err's underlying error.
+func (err CancelledError) Unwrap() error {
+	return err.error
+}
+
+// User annotates err as a context cancelled error.
+func Cancelled(err error) error {
 	if err == nil {
 		return nil
 	}
-	return operationError{system: true, inner: err}
+	return CancelledError{User(err)}
 }
 
-// CancelledError annotates err in such a way that IsCancelled() can be used further up in the callstack.
-func CancelledError(err error) error {
-	if err == nil {
-		return nil
-	}
-	return operationError{cancelled: true, inner: err}
-}
-
-// IsUserError finds the first nitro error in the chain and returns true if it is a user error.
+// IsUserError returns whether err is annotated as a user error.
 func IsUserError(err error) bool {
-	var e operationError
-	if errors.As(err, &e) {
-		return e.user
-	}
-	return false
+	return errors.As(err, &UserError{})
 }
 
-// IsSystemError finds the first nitro error in the chain and returns true if it is a system error.
-func IsSystemError(err error) bool {
-	var e operationError
-	if errors.As(err, &e) {
-		return e.system
-	}
-	return false
-}
-
-// IsCancelledError finds the first nitro error in the chain and returns true if it is an error caused by a cancelled context.
+// IsCancelledError returns whether err is annotated as a context cancelled error.
 func IsCancelledError(err error) bool {
-	var e operationError
-	if errors.As(err, &e) {
-		return e.cancelled
-	}
-	return false
+	return errors.As(err, &CancelledError{})
+}
+
+// IsSystemError returns whether err is not annotated as a user error.
+func IsSystemError(err error) bool {
+	return !errors.As(err, &UserError{})
 }
