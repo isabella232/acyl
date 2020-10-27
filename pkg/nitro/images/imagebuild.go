@@ -71,6 +71,7 @@ func buildid(envname, name string) string {
 
 // Completed returns if build for repo has completed along with outcome
 func (b *BuildBatch) Completed(envname, name string) (bool, error) {
+	fmt.Println("Completed")
 	b.outcomes.RLock()
 	defer b.outcomes.RUnlock()
 	err, ok := b.outcomes.completed[buildid(envname, name)]
@@ -119,7 +120,7 @@ func (b *ImageBuilder) StartBuilds(ctx context.Context, envname string, rc *mode
 		eventlogger.GetLogger(ctx).SetImageCompleted(name, err != nil)
 
 		batch.outcomes.Lock()
-		batch.outcomes.completed[buildid(envname, name)] = nitroerrors.UserError(err)
+		batch.outcomes.completed[buildid(envname, name)] = nitroerrors.User(err)
 		batch.outcomes.Unlock()
 	}
 	cfs := []context.CancelFunc{}
