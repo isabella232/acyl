@@ -274,11 +274,14 @@ func (m *Manager) Create(ctx context.Context, rd models.RepoRevisionData) (strin
 		name, err = m.create(ctx, &rd)
 		return err
 	})
-	if !nitroerrors.IsCancelledError(err) {
-		return "", err
+	cancelled := nitroerrors.IsCancelledError(err)
+	if cancelled {
+		if statusErr := m.setStatus(ctx, rd, models.Cancelled); statusErr != nil {
+			err = fmt.Errorf("error setting environment status after cancellation: %w", err)
+		}
 	}
-	if err := m.setStatus(ctx, rd, models.Cancelled); err != nil {
-		return "", fmt.Errorf("error setting environment status after cancellation: %w", err)
+	if err != nil {
+		return "", err
 	}
 	return name, nil
 }
@@ -559,13 +562,13 @@ func (m *Manager) Delete(ctx context.Context, rd *models.RepoRevisionData, reaso
 	err = m.lockingOperation(ctx, rd.Repo, rd.PullRequest, func(ctx context.Context) error {
 		return m.delete(ctx, rd, reason)
 	})
-	if !nitroerrors.IsCancelledError(err) {
-		return err
+	cancelled := nitroerrors.IsCancelledError(err)
+	if cancelled {
+		if statusErr := m.setStatus(ctx, *rd, models.Cancelled); statusErr != nil {
+			err = fmt.Errorf("error setting environment status after cancellation: %w", err)
+		}
 	}
-	if err := m.setStatus(ctx, *rd, models.Cancelled); err != nil {
-		return fmt.Errorf("error setting environment status after cancellation: %w", err)
-	}
-	return nil
+	return err
 }
 
 var extantEnvsErr = errors.New("did not find exactly one extant environment")
@@ -706,11 +709,14 @@ func (m *Manager) Update(ctx context.Context, rd models.RepoRevisionData) (strin
 		name, err = m.update(ctx, &rd)
 		return err
 	})
-	if !nitroerrors.IsCancelledError(err) {
-		return "", err
+	cancelled := nitroerrors.IsCancelledError(err)
+	if cancelled {
+		if statusErr := m.setStatus(ctx, rd, models.Cancelled); statusErr != nil {
+			err = fmt.Errorf("error setting environment status after cancellation: %w", err)
+		}
 	}
-	if err := m.setStatus(ctx, rd, models.Cancelled); err != nil {
-		return "", fmt.Errorf("error setting environment status after cancellation: %w", err)
+	if err != nil {
+		return "", err
 	}
 	return name, nil
 }
