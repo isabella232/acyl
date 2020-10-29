@@ -274,7 +274,13 @@ func (m *Manager) Create(ctx context.Context, rd models.RepoRevisionData) (strin
 		name, err = m.create(ctx, &rd)
 		return err
 	})
-	return name, err
+	if !nitroerrors.IsCancelledError(err) {
+		return "", err
+	}
+	if err := m.setStatus(ctx, rd, models.Cancelled); err != nil {
+		return "", fmt.Errorf("error setting environment status after cancellation: %w", err)
+	}
+	return name, nil
 }
 
 // enforceGlobalLimit checks existing environments against the configured global limit.
@@ -553,7 +559,13 @@ func (m *Manager) Delete(ctx context.Context, rd *models.RepoRevisionData, reaso
 	err = m.lockingOperation(ctx, rd.Repo, rd.PullRequest, func(ctx context.Context) error {
 		return m.delete(ctx, rd, reason)
 	})
-	return err
+	if !nitroerrors.IsCancelledError(err) {
+		return err
+	}
+	if err := m.setStatus(ctx, *rd, models.Cancelled); err != nil {
+		return fmt.Errorf("error setting environment status after cancellation: %w", err)
+	}
+	return nil
 }
 
 var extantEnvsErr = errors.New("did not find exactly one extant environment")
@@ -569,6 +581,17 @@ func (m *Manager) getenv(ctx context.Context, rd *models.RepoRevisionData) (*mod
 		return nil, extantEnvsErr
 	}
 	return &envs[0], nil
+}
+
+func (m *Manager) setStatus(ctx context.Context, rd models.RepoRevisionData, status models.EnvironmentStatus) error {
+	env, err := m.getenv(ctx, &rd)
+	if err != nil {
+		return fmt.Errorf("error getting environment from RepoRevisionData after cancellation: %w", err)
+	}
+	if err := m.DL.SetQAEnvironmentStatus(ctx, env.Name, status); err != nil {
+		return fmt.Errorf("error persisting status: %w", err)
+	}
+	return nil
 }
 
 func (m *Manager) delete(ctx context.Context, rd *models.RepoRevisionData, reason models.QADestroyReason) (err error) {
@@ -683,7 +706,13 @@ func (m *Manager) Update(ctx context.Context, rd models.RepoRevisionData) (strin
 		name, err = m.update(ctx, &rd)
 		return err
 	})
-	return name, err
+	if !nitroerrors.IsCancelledError(err) {
+		return "", err
+	}
+	if err := m.setStatus(ctx, rd, models.Cancelled); err != nil {
+		return "", fmt.Errorf("error setting environment status after cancellation: %w", err)
+	}
+	return name, nil
 }
 
 func (m *Manager) update(ctx context.Context, rd *models.RepoRevisionData) (envname string, err error) {

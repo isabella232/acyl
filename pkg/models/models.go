@@ -30,6 +30,7 @@ const (
 	Failure                                // Failure means there was an error during provisioning or application startup
 	Destroyed                              // Destroyed means the environment was destroyed explicitly or as part of a PR synchronize or close
 	Updating                               // Updating means an existing env is being updated (replaced behind the scenes)
+	Cancelled                              // Cancelled means an environment has been cancelled via a context.
 )
 
 // EnvironmentStatusFromString returns the EnvironmentStatus constant for a string or error if unknown
@@ -46,6 +47,8 @@ func EnvironmentStatusFromString(es string) (EnvironmentStatus, error) {
 		return Destroyed, nil
 	case "updating":
 		return Updating, nil
+	case "cancelled":
+		return Cancelled, nil
 	default:
 		return UnknownStatus, fmt.Errorf("unknown status")
 	}

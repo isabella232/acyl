@@ -385,11 +385,14 @@ func TestCreate(t *testing.T) {
 				if err != nil {
 					st.Fatalf("should have succeeded: %v", err)
 				}
-				env, _ := dl.GetQAEnvironment(context.Background(), name)
-				if env == nil {
-					st.Fatalf("env missing")
+				env, err := dl.GetQAEnvironment(context.Background(), name)
+				if err != nil {
+					st.Fatalf("env missing: %v", err)
 				}
-				k8senv, _ := dl.GetK8sEnv(context.Background(), name)
+				k8senv, err := dl.GetK8sEnv(context.Background(), name)
+				if err != nil {
+					st.Fatalf("k8senv missing: %v", err)
+				}
 				if k8senv == nil {
 					st.Fatalf("k8senv missing")
 				}
@@ -433,9 +436,9 @@ func TestCreate(t *testing.T) {
 				if err != nil {
 					st.Fatalf("should have succeeded: %v", err)
 				}
-				env, _ := dl.GetQAEnvironment(context.Background(), name)
-				if env == nil {
-					st.Fatalf("env missing")
+				env, err := dl.GetQAEnvironment(context.Background(), name)
+				if err != nil {
+					st.Fatalf("env missing: %v", err)
 				}
 				env, _ = dl.GetQAEnvironment(context.Background(), "some-other-random-name")
 				if env == nil {
