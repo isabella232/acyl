@@ -275,12 +275,13 @@ func (m *Manager) Create(ctx context.Context, rd models.RepoRevisionData) (strin
 		return err
 	})
 	if nitroerrors.IsCancelledError(err) {
-		env, err := m.getenv(ctx, &rd)
-		if err != nil {
-			err = fmt.Errorf("error getting environment from RepoRevisionData after cancellation: %w", err)
+		ctx := context.Background()
+		env, envErr := m.getenv(ctx, &rd)
+		if envErr != nil {
+			return name, err
 		}
 		if err := m.DL.SetQAEnvironmentStatus(ctx, env.Name, models.Cancelled); err != nil {
-			err = fmt.Errorf("error persisting cancelled status after cancellation: %w", err)
+			m.log(ctx, "error persisting cancelled status after cancellation: %v", err)
 		}
 	}
 	return name, err
@@ -563,12 +564,13 @@ func (m *Manager) Delete(ctx context.Context, rd *models.RepoRevisionData, reaso
 		return m.delete(ctx, rd, reason)
 	})
 	if nitroerrors.IsCancelledError(err) {
-		env, err := m.getenv(ctx, rd)
-		if err != nil {
-			err = fmt.Errorf("error getting environment from RepoRevisionData after cancellation: %w", err)
+		ctx := context.Background()
+		env, envErr := m.getenv(ctx, rd)
+		if envErr != nil {
+			return err
 		}
 		if err := m.DL.SetQAEnvironmentStatus(ctx, env.Name, models.Cancelled); err != nil {
-			err = fmt.Errorf("error persisting cancelled status after cancellation: %w", err)
+			m.log(ctx, "error persisting cancelled status after cancellation: %v", err)
 		}
 	}
 	return err
@@ -702,12 +704,13 @@ func (m *Manager) Update(ctx context.Context, rd models.RepoRevisionData) (strin
 		return err
 	})
 	if nitroerrors.IsCancelledError(err) {
-		env, err := m.getenv(ctx, &rd)
-		if err != nil {
-			err = fmt.Errorf("error getting environment from RepoRevisionData after cancellation: %w", err)
+		ctx := context.Background()
+		env, envErr := m.getenv(ctx, &rd)
+		if envErr != nil {
+			return name, err
 		}
 		if err := m.DL.SetQAEnvironmentStatus(ctx, env.Name, models.Cancelled); err != nil {
-			err = fmt.Errorf("error persisting cancelled status after cancellation: %w", err)
+			m.log(ctx, "error persisting cancelled status after cancellation: %v", err)
 		}
 	}
 	return name, err
