@@ -704,8 +704,8 @@ func (m *Manager) Update(ctx context.Context, rd models.RepoRevisionData) (strin
 		return err
 	})
 	if nitroerrors.IsCancelledError(err) {
-		ctx := context.Background()
-		env, envErr := m.getenv(ctx, &rd)
+		envCtx := context.Background()
+		env, envErr := m.getenv(envCtx, &rd)
 		if envErr != nil {
 			return name, err
 		}
