@@ -275,8 +275,7 @@ func (m *Manager) Create(ctx context.Context, rd models.RepoRevisionData) (strin
 		return err
 	})
 	if nitroerrors.IsCancelledError(err) {
-		ctx := context.Background()
-		env, envErr := m.getenv(ctx, &rd)
+		env, envErr := m.getenv(context.Background(), &rd)
 		if envErr != nil {
 			return name, err
 		}
@@ -564,8 +563,7 @@ func (m *Manager) Delete(ctx context.Context, rd *models.RepoRevisionData, reaso
 		return m.delete(ctx, rd, reason)
 	})
 	if nitroerrors.IsCancelledError(err) {
-		ctx := context.Background()
-		env, envErr := m.getenv(ctx, rd)
+		env, envErr := m.getenv(context.Background(), rd)
 		if envErr != nil {
 			return err
 		}
@@ -704,8 +702,7 @@ func (m *Manager) Update(ctx context.Context, rd models.RepoRevisionData) (strin
 		return err
 	})
 	if nitroerrors.IsCancelledError(err) {
-		envCtx := context.Background()
-		env, envErr := m.getenv(envCtx, &rd)
+		env, envErr := m.getenv(context.Background(), &rd)
 		if envErr != nil {
 			return name, err
 		}
