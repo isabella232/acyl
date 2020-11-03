@@ -279,7 +279,7 @@ func (m *Manager) Create(ctx context.Context, rd models.RepoRevisionData) (strin
 		if envErr != nil {
 			return name, err
 		}
-		if err := m.DL.SetQAEnvironmentStatus(ctx, env.Name, models.Cancelled); err != nil {
+		if err := m.DL.SetQAEnvironmentStatus(context.Background(), env.Name, models.Cancelled); err != nil {
 			m.log(ctx, "error persisting cancelled status after cancellation: %v", err)
 		}
 	}
@@ -567,7 +567,7 @@ func (m *Manager) Delete(ctx context.Context, rd *models.RepoRevisionData, reaso
 		if envErr != nil {
 			return err
 		}
-		if err := m.DL.SetQAEnvironmentStatus(ctx, env.Name, models.Cancelled); err != nil {
+		if err := m.DL.SetQAEnvironmentStatus(context.Background(), env.Name, models.Cancelled); err != nil {
 			m.log(ctx, "error persisting cancelled status after cancellation: %v", err)
 		}
 	}
@@ -706,7 +706,7 @@ func (m *Manager) Update(ctx context.Context, rd models.RepoRevisionData) (strin
 		if envErr != nil {
 			return name, err
 		}
-		if err := m.DL.SetQAEnvironmentStatus(ctx, env.Name, models.Cancelled); err != nil {
+		if err := m.DL.SetQAEnvironmentStatus(context.Background(), env.Name, models.Cancelled); err != nil {
 			m.log(ctx, "error persisting cancelled status after cancellation: %v", err)
 		}
 	}
