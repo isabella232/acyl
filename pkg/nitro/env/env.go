@@ -274,6 +274,15 @@ func (m *Manager) Create(ctx context.Context, rd models.RepoRevisionData) (strin
 		name, err = m.create(ctx, &rd)
 		return err
 	})
+	if nitroerrors.IsCancelledError(err) {
+		env, envErr := m.getenv(context.Background(), &rd)
+		if envErr != nil {
+			return name, err
+		}
+		if err := m.DL.SetQAEnvironmentStatus(context.Background(), env.Name, models.Cancelled); err != nil {
+			m.log(ctx, "error persisting cancelled status after cancellation: %v", err)
+		}
+	}
 	return name, err
 }
 
@@ -553,6 +562,15 @@ func (m *Manager) Delete(ctx context.Context, rd *models.RepoRevisionData, reaso
 	err = m.lockingOperation(ctx, rd.Repo, rd.PullRequest, func(ctx context.Context) error {
 		return m.delete(ctx, rd, reason)
 	})
+	if nitroerrors.IsCancelledError(err) {
+		env, envErr := m.getenv(context.Background(), rd)
+		if envErr != nil {
+			return err
+		}
+		if err := m.DL.SetQAEnvironmentStatus(context.Background(), env.Name, models.Cancelled); err != nil {
+			m.log(ctx, "error persisting cancelled status after cancellation: %v", err)
+		}
+	}
 	return err
 }
 
@@ -683,6 +701,15 @@ func (m *Manager) Update(ctx context.Context, rd models.RepoRevisionData) (strin
 		name, err = m.update(ctx, &rd)
 		return err
 	})
+	if nitroerrors.IsCancelledError(err) {
+		env, envErr := m.getenv(context.Background(), &rd)
+		if envErr != nil {
+			return name, err
+		}
+		if err := m.DL.SetQAEnvironmentStatus(context.Background(), env.Name, models.Cancelled); err != nil {
+			m.log(ctx, "error persisting cancelled status after cancellation: %v", err)
+		}
+	}
 	return name, err
 }
 
