@@ -77,7 +77,7 @@ type K8sClientFactoryFunc func(kubecfgpath, kubectx string) (*kubernetes.Clients
 
 // Defaults for Tiller configuration options, if not specified otherwise
 const (
-	DefaultTillerImage                   = "helmpack/tiller:v2.17.0"
+	DefaultTillerImage                   = "932427637498.dkr.ecr.us-west-2.amazonaws.com/tiller:v2.17.0"
 	DefaultTillerPort                    = 44134
 	DefaultTillerDeploymentName          = "tiller-deploy"
 	DefaultTillerServerConnectRetryDelay = 10 * time.Second
