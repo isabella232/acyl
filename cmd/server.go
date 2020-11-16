@@ -182,7 +182,7 @@ func server(cmd *cobra.Command, args []string) {
 	if err := k8sConfig.ProcessSecretInjections(sc, k8sSecretsStr); err != nil {
 		log.Fatalf("error in k8s secret injections: %v", err)
 	}
-	ci, err := metahelm.NewChartInstaller(ib, dl, fs, nmc, k8sConfig.GroupBindings, k8sConfig.PrivilegedRepoWhitelist, k8sConfig.SecretInjections, metahelm.TillerConfig{}, k8sClientConfig.JWTPath, true)
+	ci, err := metahelm.NewChartInstaller(ib, dl, fs, nmc, k8sConfig.GroupBindings, k8sConfig.PrivilegedRepoWhitelist, k8sConfig.SecretInjections, tillerConfig, k8sClientConfig.JWTPath, true)
 	if err != nil {
 		log.Fatalf("error getting metahelm chart installer: %v", err)
 	}
