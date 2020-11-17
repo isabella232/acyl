@@ -155,10 +155,11 @@ func NewChartInstaller(ib images.Builder, dl persistence.DataLayer, fs billy.Fil
 }
 
 // NewChartInstallerWithoutK8sClient returns a ChartInstaller without a k8s client, for use in testing/CLI.
-func NewChartInstallerWithoutK8sClient(ib images.Builder, dl persistence.DataLayer, fs billy.Filesystem, mc metrics.Collector, k8sGroupBindings map[string]string, k8sRepoWhitelist []string, k8sSecretInjs map[string]config.K8sSecret) (*ChartInstaller, error) {
+func NewChartInstallerWithoutK8sClient(ib images.Builder, dl persistence.DataLayer, fs billy.Filesystem, mc metrics.Collector, k8sGroupBindings map[string]string, k8sRepoWhitelist []string, k8sSecretInjs map[string]config.K8sSecret, tcfg TillerConfig) (*ChartInstaller, error) {
 	return &ChartInstaller{
 		ib:               ib,
 		hcf:              NewInClusterHelmClient,
+		tcfg:             tcfg.SetDefaults(),
 		dl:               dl,
 		fs:               fs,
 		mc:               mc,
