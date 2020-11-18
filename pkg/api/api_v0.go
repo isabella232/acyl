@@ -15,7 +15,7 @@ import (
 	"github.com/dollarshaveclub/acyl/pkg/ghapp"
 	"github.com/dollarshaveclub/acyl/pkg/ghclient"
 
-	"github.com/dollarshaveclub/acyl/pkg/nitro/errors"
+	nitroerrors "github.com/dollarshaveclub/acyl/pkg/nitro/errors"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
@@ -216,7 +216,7 @@ func (api *v0api) processWebhook(ctx context.Context, action string, rrd models.
 
 	var err error
 	finishWithError := func() {
-		if errors.IsCancelledError(err) {
+		if nitroerrors.IsCancelledError(err) {
 			span.Finish()
 			return
 		}
