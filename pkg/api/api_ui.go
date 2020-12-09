@@ -808,15 +808,14 @@ func (api *uiapi) failureReportHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	cfg := elog.Status.Config
 	td := failureReportTmplData{
 		BaseTemplateData: api.defaultBaseTemplateData(&uis),
-		EnvName:          cfg.EnvName,
+		EnvName:          elog.EnvName,
 		EventID:          id,
-		PullRequestURL:   fmt.Sprintf("https://github.com/%v/pull/%v", elog.Repo, cfg.PullRequest),
-		StartedTime:      cfg.Started,
-		FailedTime:       cfg.Completed,
-		FailedResources:  cfg.FailedResources,
+		PullRequestURL:   fmt.Sprintf("https://github.com/%v/pull/%v", elog.Repo, elog.PullRequest),
+		StartedTime:      elog.Status.Config.Started,
+		FailedTime:       elog.Status.Config.Completed,
+		FailedResources:  elog.Status.Config.FailedResources,
 	}
 	api.render(w, "failure_report", &td)
 }

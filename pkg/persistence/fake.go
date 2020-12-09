@@ -821,10 +821,6 @@ func (fdl *FakeDataLayer) GetEventLogsByEnvName(name string) ([]models.EventLog,
 	return out, nil
 }
 
-func (fdl *FakeDataLayer) GetEventLogsWithStatusByEnvName(name string) ([]models.EventLog, error) {
-	return fdl.GetEventLogsByEnvName(name)
-}
-
 func (fdl *FakeDataLayer) GetEventLogsByRepoAndPR(repo string, pr uint) ([]models.EventLog, error) {
 	fdl.doDelay()
 	fdl.data.RLock()
@@ -1212,8 +1208,8 @@ func (fdl *FakeDataLayer) GetAPIKeysByGithubUser(ctx context.Context, githubUser
 	fdl.data.RLock()
 	defer fdl.data.RUnlock()
 	var keys []*models.APIKey
-	for _, v := range fdl.data.apikeys{
-		if v.GitHubUser == githubUser{
+	for _, v := range fdl.data.apikeys {
+		if v.GitHubUser == githubUser {
 			keys = append(keys, v)
 		}
 	}
