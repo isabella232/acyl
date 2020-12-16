@@ -510,10 +510,11 @@ func TestAPIv2UserEnvNamePods(t *testing.T) {
 	if len(out) != 2 {
 		t.Fatalf("expected 2, got %v", len(out))
 	}
-	for _, p := range out {
-		if p.Ready != "1/1" && p.Status != "Running" {
-			t.Fatalf("expected Ready: 1/1 & Status: Running, got %v, %v", p.Ready, p.Status)
-		}
+	if out[0].Ready != "2/2" && out[0].Status != "Running" {
+		t.Fatalf("expected Ready: 2/2 & Status: Running, got %v, %v", out[0].Ready, out[0].Status)
+	}
+	if out[1].Ready != "1/2" && out[1].Status != "Pending" {
+		t.Fatalf("expected Ready: 1/2 & Status: Running, got %v, %v", out[1].Ready, out[1].Status)
 	}
 }
 

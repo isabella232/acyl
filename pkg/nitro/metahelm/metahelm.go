@@ -1125,11 +1125,17 @@ func (ci ChartInstaller) GetPodList(ctx context.Context, ns string) (out []K8sPo
 				nReady += 1
 			}
 		}
+		rc := int32(0)
+		if p.Status.Size() != 0 &&
+			len(p.Status.ContainerStatuses) > 0 &&
+			p.Status.ContainerStatuses[0].Size() != 0 {
+			rc = p.Status.ContainerStatuses[0].RestartCount
+		}
 		out = append(out, K8sPod{
 			Name:     p.Name,
 			Ready:    fmt.Sprintf("%v/%v", nReady, nContainers),
 			Status:   string(p.Status.Phase),
-			Restarts: p.Status.ContainerStatuses[0].RestartCount,
+			Restarts: rc,
 			Age:      age,
 		})
 	}
