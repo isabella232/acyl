@@ -1207,22 +1207,7 @@ func TestDataLayerGetEventLogsByEnvName(t *testing.T) {
 		t.Fatalf("error setting up test database: %v", err)
 	}
 	defer tdl.TearDown()
-	logs, err := dl.GetEventLogsByEnvName("foo-bar")
-	if err != nil {
-		t.Fatalf("should have succeeded: %v", err)
-	}
-	if i := len(logs); i != 2 {
-		t.Fatalf("expected length of 2: %v", i)
-	}
-}
-
-func TestDataLayerGetEventLogsWithStatusByEnvName(t *testing.T) {
-	dl, tdl := NewTestDataLayer(t)
-	if err := tdl.Setup(testDataPath); err != nil {
-		t.Fatalf("error setting up test database: %v", err)
-	}
-	defer tdl.TearDown()
-	logs, err := dl.GetEventLogsWithStatusByEnvName("foo-bar-2")
+	logs, err := dl.GetEventLogsByEnvName("foo-bar-2")
 	if err != nil {
 		t.Fatalf("should have succeeded: %v", err)
 	}
@@ -1905,7 +1890,7 @@ func TestGetAPIKeyById(t *testing.T) {
 	}
 }
 
-func TestGetAPIKeysByGithubUser(t *testing.T)  {
+func TestGetAPIKeysByGithubUser(t *testing.T) {
 	dl, tdl := NewTestDataLayer(t)
 	if err := tdl.Setup(testDataPath); err != nil {
 		t.Fatalf("error setting up test database: %v", err)
@@ -1923,7 +1908,7 @@ func TestGetAPIKeysByGithubUser(t *testing.T)  {
 	}
 }
 
-func TestUpdateAPIKeyLastUsed(t *testing.T)  {
+func TestUpdateAPIKeyLastUsed(t *testing.T) {
 	dl, tdl := NewTestDataLayer(t)
 	if err := tdl.Setup(testDataPath); err != nil {
 		t.Fatalf("error setting up test database: %v", err)
@@ -1956,12 +1941,12 @@ func TestUpdateAPIKeyLastUsed(t *testing.T)  {
 	if err != nil {
 		t.Fatalf("error getting api key: %v", err)
 	}
-	if  lu == updated.LastUsed.Time {
+	if lu == updated.LastUsed.Time {
 		t.Fatalf("expected last used to update; original: %v, updated: %v", lu, updated.LastUsed.Time)
 	}
 }
 
-func TestDeleteAPIKey(t *testing.T)  {
+func TestDeleteAPIKey(t *testing.T) {
 	dl, tdl := NewTestDataLayer(t)
 	if err := tdl.Setup(testDataPath); err != nil {
 		t.Fatalf("error setting up test database: %v", err)
@@ -1989,7 +1974,7 @@ func TestDeleteAPIKey(t *testing.T)  {
 		},
 	}
 	for _, r := range requests {
-		id, err := dl.CreateAPIKey(context.Background(),r.PermissionLevel, r.Name, r.Description, r.GitHubUser)
+		id, err := dl.CreateAPIKey(context.Background(), r.PermissionLevel, r.Name, r.Description, r.GitHubUser)
 		if err != nil {
 			t.Fatalf("create api key should have succeeded: %v", err)
 		}

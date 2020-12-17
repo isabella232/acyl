@@ -1293,10 +1293,11 @@ func TestMetahelmGetK8sEnvPodList(t *testing.T) {
 	if len(pl) != 2 {
 		t.Fatalf("expected 2, got %v", len(pl))
 	}
-	for _, p := range pl {
-		if p.Ready != "1/1" && p.Status != "Running" {
-			t.Fatalf("expected Ready: 1/1 & Status: Running, got %v, %v", p.Ready, p.Status)
-		}
+	if pl[0].Ready != "2/2" && pl[0].Status != "Running" {
+		t.Fatalf("expected Ready: 2/2 & Status: Running, got %v, %v", pl[0].Ready, pl[0].Status)
+	}
+	if pl[1].Ready != "1/2" && pl[1].Status != "Pending" {
+		t.Fatalf("expected Ready: 1/2 & Status: Running, got %v, %v", pl[1].Ready, pl[1].Status)
 	}
 }
 
@@ -1313,8 +1314,8 @@ func TestMetahelmGetK8sEnvPodContainers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("should have succeeded: %v", err)
 	}
-	if len(pc.Containers) != 1 {
-		t.Fatalf("expected 1, got %v", len(pc.Containers))
+	if len(pc.Containers) != 2 {
+		t.Fatalf("expected 2, got %v", len(pc.Containers))
 	}
 	pc, err = ci.GetPodContainers(context.Background(), "foo", "baz-app-abc123")
 	if err == nil {
