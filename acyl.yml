@@ -30,7 +30,7 @@ dependencies:
   direct:
     - repo: dollarshaveclub/furan
       name: furan
-      default_branch: master
+      default_branch: legacy-v1
     - chart_repo_path: 'kubernetes/charts@9e28c906fc7a8e62e77a0743cd4b3bd38fbba008:stable/postgresql'
       chart_vars_repo_path: 'kubernetes/charts@9e28c906fc7a8e62e77a0743cd4b3bd38fbba008:stable/postgresql/values.yaml'
       value_overrides:
