@@ -217,8 +217,7 @@ func (api *v0api) processWebhook(ctx context.Context, action string, rrd models.
 	var err error
 	finishWithError := func() {
 		if nitroerrors.IsCancelledError(err) {
-			span.Finish()
-			return
+			err = nil
 		}
 		span.Finish(tracer.WithError(err))
 	}
