@@ -15,6 +15,7 @@ import (
 	"github.com/dollarshaveclub/acyl/pkg/ghapp"
 	"github.com/dollarshaveclub/acyl/pkg/ghclient"
 
+	nitroerrors "github.com/dollarshaveclub/acyl/pkg/nitro/errors"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
@@ -213,6 +214,14 @@ func (api *v0api) processWebhook(ctx context.Context, action string, rrd models.
 	setTagsForGithubWebhookHandler(span, rrd)
 	ctx = tracer.ContextWithSpan(ctx, span)
 
+	var err error
+	finishWithError := func() {
+		if nitroerrors.IsCancelledError(err) {
+			err = nil
+		}
+		span.Finish(tracer.WithError(err))
+	}
+
 	switch action {
 	case "reopened":
 		fallthrough
@@ -220,8 +229,7 @@ func (api *v0api) processWebhook(ctx context.Context, action string, rrd models.
 		log("starting async processing for %v", action)
 		api.wg.Add(1)
 		go func() {
-			var err error
-			defer func() { span.Finish(tracer.WithError(err)) }()
+			defer finishWithError()
 			defer api.wg.Done()
 			ctx, cf := context.WithTimeout(ctx, MaxAsyncActionTimeout)
 			defer cf() // guarantee that any goroutines created with the ctx are cancelled
@@ -236,8 +244,7 @@ func (api *v0api) processWebhook(ctx context.Context, action string, rrd models.
 		log("starting async processing for %v", action)
 		api.wg.Add(1)
 		go func() {
-			var err error
-			defer func() { span.Finish(tracer.WithError(err)) }()
+			defer finishWithError()
 			defer api.wg.Done()
 			ctx, cf := context.WithTimeout(ctx, MaxAsyncActionTimeout)
 			defer cf() // guarantee that any goroutines created with the ctx are cancelled
@@ -252,8 +259,7 @@ func (api *v0api) processWebhook(ctx context.Context, action string, rrd models.
 		log("starting async processing for %v", action)
 		api.wg.Add(1)
 		go func() {
-			var err error
-			defer func() { span.Finish(tracer.WithError(err)) }()
+			defer finishWithError()
 			defer api.wg.Done()
 			ctx, cf := context.WithTimeout(ctx, MaxAsyncActionTimeout)
 			defer cf() // guarantee that any goroutines created with the ctx are cancelled
@@ -266,8 +272,8 @@ func (api *v0api) processWebhook(ctx context.Context, action string, rrd models.
 		}()
 	default:
 		log("unknown action type: %v", action)
-		err := fmt.Errorf("unknown action type: %v (event_log_id: %v)", action, eventlogger.GetLogger(ctx).ID.String())
-		span.Finish(tracer.WithError(err))
+		err = fmt.Errorf("unknown action type: %v (event_log_id: %v)", action, eventlogger.GetLogger(ctx).ID.String())
+		finishWithError()
 		return err
 	}
 
