@@ -11,5 +11,5 @@ generate:
 check:
 	./check.sh
 
-swagger:
-	./swagger.sh
+docs:
+	./openapi.sh

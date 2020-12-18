@@ -264,8 +264,8 @@ func (api *uiapi) register(r *muxtrace.Router) error {
 	// static assets
 	r.PathPrefix(urlPath("/static/")).Handler(http.StripPrefix(urlPath("/static/"), http.FileServer(http.Dir(path.Join(api.assetsPath, "assets")))))
 
-	// swagger docs
-	r.PathPrefix(urlPath("/swagger/")).Handler(http.StripPrefix(urlPath("/swagger/"), http.FileServer(http.Dir(path.Join(api.assetsPath, "swagger")))))
+	// api documentation
+	r.PathPrefix(urlPath("/apidocs/")).Handler(http.StripPrefix(urlPath("/apidocs/"), http.FileServer(http.Dir(path.Join(api.assetsPath, "apidocs")))))
 
 	return nil
 }

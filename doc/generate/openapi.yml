@@ -1,0 +1,795 @@
+###############################################################################
+# References
+# https://github.com/OpenAPITools/openapi-generator-cli/tree/master/apps/generator-cli/src
+# https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.3.md
+#
+###############################################################################
+# Manual Update Swagger Doc, Build HTML & CSS
+# 1) Update this swagger.yml document file
+# 2) run $ openapi-generator-cli generate -g html -i doc/swagger/swagger.yml -o ui/swagger/
+#
+openapi: "3.0.3"
+
+servers:
+  - url: http://localhost
+    description: "Defined by server config / helm chart"
+
+info:
+  title: Acyl API
+  description: "The Acyl API provides authenticated users an array of options to create and manage dynamic environments."
+  contact:
+    name: Benjamen Keroack
+    url: "https://github.com/dollarshaveclub/acyl"
+    email: benjamen@dollarshaveclub.com
+  license:
+    name: MIT
+    url: "https://opensource.org/licenses/MIT"
+  version: v0.8.0
+
+tags:
+  - name: v0
+    description: "API v0 endpoints; duplicates and expand backward_compatible endpoints"
+  - name: v1
+    description: "API v1 endpoints; adds recent endpoint option"
+  - name: v2
+    description: "API v2 endpoints; adds Nitro features"
+
+security:
+  - api_key: []
+
+components:
+  securitySchemes:
+    api_key:
+      description: "API Key or aborts with Unauthorized"
+      type: apiKey
+      name: API-Key
+      in: header
+  schemas:
+    QAEnvironmentEvent:
+      type: object
+      description: "This represents the default environment"
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        message:
+          type: string
+    RefMap:
+      type: object
+      description: "This represents a map of repo name to git reference (branch)"
+      properties:
+        string:
+          type: string
+    CommitShaMap:
+      type: object
+      description: "This represents a map of repo name to full commit shas"
+      properties:
+        string:
+          type: string
+    QAEnvironment_v0:
+      type: object
+      description: "This represents the versioned environment"
+      properties:
+        name:
+          type: string
+        created:
+          type: string
+          format: date-time
+        events:
+          $ref: '#/components/schemas/QAEnvironmentEvent'
+        hostname:
+          type: string
+        qa_type:
+          deprecated: true
+          type: string
+          description: "**DEPRECATED** not supported with Nitro v2 or newer"
+        user:
+          type: string
+          description: "GitHub username of the user who opened the triggering PR."
+        repo:
+          type: string
+          description: "GitHub repository, including organization if applicable (e.g. dollarshaveclub/acyl)"
+        pull_request:
+          type: integer
+          format: uint
+          description: "GitHub Pull Request ID"
+        source_sha:
+          type: string
+          description: "GitHub SHA for the dev branch"
+        base_sha:
+          type: string
+          description: "GitHub HEAD commit SHA for the branch the PR will merge into (eg, master)."
+        source_branch:
+          type: string
+          description: "GitHub name of the dev branch"
+        base_branch:
+          type: string
+          description: "GitHub branch name the PR will merge into (eg, master)."
+        raw_status:
+          type: string
+        status:
+          type: integer
+          description: "Integer based on EnvironmentStatus; UnknownStatus: 0, Spawned: 1, Success: 2, Failure: 3, Destroyed: 4, Updating: 5, Cancelled: 6"
+        ref_map:
+          $ref: '#/components/schemas/RefMap'
+        amino_service_to_port:
+          deprecated: true
+          type: object
+          description: "**DEPRECATED** not supported with Nitro v2 or newer"
+          properties:
+            string:
+              type: integer
+              format: int64
+        amino_kubernetes_namespace:
+          deprecated: true
+          type: string
+          description: "**DEPRECATED** not supported with Nitro v2 or newer"
+        amino_environment_id:
+          deprecated: true
+          type: integer
+          description: "**DEPRECATED** not supported with Nitro v2 or newer"
+    QAEnvironment_v1:
+      type: object
+      description: "This represents the versioned (v1) environment which includes commit_sha_map"
+      properties:
+        name:
+          type: string
+        created:
+          type: string
+          format: date-time
+        events:
+          $ref: '#/components/schemas/QAEnvironmentEvent'
+        hostname:
+          type: string
+        qa_type:
+          deprecated: true
+          type: string
+          description: "**DEPRECATED** not supported with Nitro v2 or newer"
+        user:
+          type: string
+          description: "GitHub username of the user who opened the triggering PR."
+        repo:
+          type: string
+          description: "GitHub repository, including organization if applicable (e.g. dollarshaveclub/acyl)"
+        pull_request:
+          type: integer
+          format: uint
+          description: "GitHub Pull Request value"
+        source_sha:
+          type: string
+          description: "GitHub SHA for the dev branch"
+        base_sha:
+          type: string
+          description: "GitHub HEAD commit SHA for the branch the PR will merge into (eg, master)."
+        source_branch:
+          type: string
+          description: "GitHub name of the dev branch"
+        base_branch:
+          type: string
+          description: "GitHub branch name the PR will merge into (eg, master)."
+        raw_status:
+          type: string
+        status:
+          type: integer
+          description: "Integer based on EnvironmentStatus; UnknownStatus: 0, Spawned: 1, Success: 2, Failure: 3, Destroyed: 4, Updating: 5, Cancelled: 6"
+        ref_map:
+          $ref: '#/components/schemas/RefMap'
+        amino_service_to_port:
+          deprecated: true
+          type: object
+          description: "**DEPRECATED** not supported with Nitro v2 or newer"
+          properties:
+            string:
+              type: integer
+              format: int64
+        amino_kubernetes_namespace:
+          deprecated: true
+          type: string
+          description: "**DEPRECATED** not supported with Nitro v2 or newer"
+        amino_environment_id:
+          deprecated: true
+          type: integer
+          description: "**DEPRECATED** not supported with Nitro v2 or newer"
+        commit_sha_map:
+          $ref: '#/components/schemas/CommitShaMap'
+    QAEnvironment_v2:
+      type: object
+      description: "This represents the versioned (v2) environment which includes changes to v1, and adds source_ref"
+      properties:
+        name:
+          type: string
+        created:
+          type: string
+          format: date-time
+        events:
+          $ref: '#/components/schemas/QAEnvironmentEvent'
+        hostname:
+          type: string
+        qa_type:
+          deprecated: true
+          type: string
+          description: "**DEPRECATED** not supported with Nitro v2 or newer"
+        user:
+          type: string
+          description: "GitHub username of the user who opened the triggering PR."
+        repo:
+          type: string
+          description: "GitHub repository, including organization if applicable (e.g. dollarshaveclub/acyl)"
+        pull_request:
+          type: integer
+          format: uint
+          description: "GitHub Pull Request value"
+        source_sha:
+          type: string
+          description: "GitHub SHA for the dev branch"
+        base_sha:
+          type: string
+          description: "GitHub HEAD commit SHA for the branch the PR will merge into (eg, master)."
+        source_branch:
+          type: string
+          description: "GitHub name of the dev branch"
+        base_branch:
+          type: string
+          description: "GitHub branch name the PR will merge into (eg, master)."
+        raw_status:
+          type: string
+        status:
+          type: integer
+          description: "Integer based on EnvironmentStatus; UnknownStatus: 0, Spawned: 1, Success: 2, Failure: 3, Destroyed: 4, Updating: 5, Cancelled: 6"
+        ref_map:
+          $ref: '#/components/schemas/RefMap'
+        amino_service_to_port:
+          deprecated: true
+          type: object
+          description: "**DEPRECATED** not supported with Nitro v2 or newer"
+          properties:
+            string:
+              type: integer
+              format: int64
+        amino_kubernetes_namespace:
+          deprecated: true
+          type: string
+          description: "**DEPRECATED** not supported with Nitro v2 or newer"
+        amino_environment_id:
+          deprecated: true
+          type: integer
+          description: "**DEPRECATED** not supported with Nitro v2 or newer"
+        commit_sha_map:
+          $ref: '#/components/schemas/CommitShaMap'
+        source_ref:
+          type: string
+    EventLog:
+      description: "This represents the event log"
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: "Acyl event log id (uuid)"
+        created:
+          type: string
+          format: date-time
+        updated:
+          type: string
+          format: date-time
+        env_name:
+          type: string
+          description: "Random generated Acyl environment name"
+        repo:
+          type: string
+          description: "GitHub repository, including organization if applicable (e.g. dollarshaveclub/acyl)"
+        pull_request:
+          type: integer
+          format: uint
+          description: "GitHub Pull Request value"
+        webhook_payload:
+          description: "Value of the `payload` field returned in the webhook response"
+          type: string
+          format: byte
+        log:
+          description: "A time-ordered array of debug log messages associated with this specific event for the environment"
+          type: string
+          format: array
+  parameters:
+    fullDetailsParam:
+      name: full_details
+      in: query
+      description: "Returns full list of details as defined by QAEnvironment (v0); default false"
+      required: false
+      schema:
+        type: string
+        format: boolean
+    prParam:
+      name: pr
+      in: query
+      description: "GitHub Pull Request value, required if repo parameter included"
+      required: false
+      schema:
+        type: string
+        format: integer
+    repoParam:
+      name: repo
+      in: query
+      description: "GitHub repository, including organization if applicable (e.g. dollarshaveclub/acyl)"
+      required: false
+      schema:
+        type: string
+    statusParam:
+      name: status
+      in: query
+      description: "Integer based on EnvironmentStatus; UnknownStatus: 0, Spawned: 1, Success: 2, Failure: 3, Destroyed: 4, Updating: 5, Cancelled: 6"
+      required: false
+      schema:
+        type: string
+        format: integer
+    sourceBranchParam:
+      name: source_branch
+      in: query
+      description: "GitHub name of the dev branch"
+      required: false
+      schema:
+        type: string
+    sourceShaParam:
+      name: source_sha
+      in: query
+      description: "GitHub SHA for the dev branch"
+      required: false
+      schema:
+        type: string
+    userParam:
+      name: user
+      in: query
+      description: "GitHub username of the user who opened the triggering PR."
+      required: false
+      schema:
+        type: string
+    envNameParam:
+      name: name
+      in: path
+      description: "Acyl environment name (e.g. foo-bar-baz)"
+      required: true
+      schema:
+        type: string
+    daysParam:
+      name: days
+      in: query
+      description: "Number of days to limit (default: 1)"
+      required: false
+      schema:
+        type: string
+        format: integer
+    eventLogIdParam:
+      name: id
+      in: path
+      description: "Acyl event log id (uuid)"
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    OK:
+      description: "200: Success."
+    Created:
+      description: "201: Succeeded, and a new resource has been created."
+    Accepted:
+      description: "202: Received, but not completed yet."
+    NoContent:
+      description: "204: Received, but no content returned."
+    BadRequest:
+      description: "400: Bad client request."
+    NotFound:
+      description: "404: Request from client not found."
+    InternalServerError:
+      description: "500: Server encountered an unexpected error."
+
+paths:
+  ### API v0 ###
+  /v0/envs:
+    get:
+      deprecated: true
+      tags:
+        - v0
+      summary: "DEPRECATED - No longer supported, please use /v0/envs/_search; get list of environments, names only or full details, duplicates /v0/envs/ endpoint"
+      operationId: ListEnvironments
+      parameters:
+        - name: full_details
+          in: query
+          description: "Returns full list of details as defined by QAEnvironment (v0); default false"
+          required: false
+          schema:
+            type: string
+            format: boolean
+      responses:
+        200:
+          description: "Returns list of string environment names, or full detailed list of environments if full_details is true"
+          content:
+            'application/json':
+              schema:
+                type: array
+                items:
+                  type: object
+                  $ref: '#/components/schemas/QAEnvironment_v0'
+        500:
+          description: "Internal Server Error"
+  /v0/envs/_search:
+    get:
+      tags:
+        - v0
+      summary: "Search environments from optional parameters, minimum one parameter required; multiple parameters are combined with a logical AND: (PR = n AND repo = foo/bar AND status = x)"
+      operationId: SearchEnvironments
+      parameters:
+        - name: pr
+          in: query
+          description: "GitHub Pull Request value, required if repo parameter included"
+          required: false
+          schema:
+            type: string
+            format: integer
+        - name: repo
+          in: query
+          description: "GitHub repository, including organization if applicable (e.g. dollarshaveclub/acyl)"
+          required: false
+          schema:
+            type: string
+        - name: status
+          in: query
+          description: "Integer based on EnvironmentStatus; UnknownStatus: 0, Spawned: 1, Success: 2, Failure: 3, Destroyed: 4, Updating: 5, Cancelled: 6"
+          required: false
+          schema:
+            type: string
+            format: integer
+        - name: source_branch
+          in: query
+          description: "GitHub name of the dev branch"
+          required: false
+          schema:
+            type: string
+        - name: source_sha
+          in: query
+          description: "GitHub SHA for the dev branch"
+          required: false
+          schema:
+            type: string
+        - name: user
+          in: query
+          description: "GitHub username of the user who opened the triggering PR."
+          required: false
+          schema:
+            type: string
+      responses:
+        200:
+          description: "Returns list of detailed environments as defined by QAEnvironment (v0)"
+          content:
+            'application/json':
+              schema:
+                type: array
+                items:
+                  type: object
+                  $ref: '#/components/schemas/QAEnvironment_v0'
+        400:
+          description: "Bad Request"
+        500:
+          description: "Internal Server Error"
+  /v0/envs/{name}:
+    get:
+      tags:
+        - v0
+      summary: "Get environment details"
+      operationId: EnvironmentDetails
+      parameters:
+        - name: name
+          in: path
+          description: "Acyl environment name (e.g. foo-bar-baz)"
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: returns detailed environment as defined by QAEnvironment (v0)
+          content:
+            'application/json':
+              schema:
+                type: object
+                $ref: '#/components/schemas/QAEnvironment_v0'
+        404:
+          description: "Not Found"
+        500:
+          description: "Internal Server Error"
+    delete:
+      tags:
+        - v0
+      summary: "Delete environment"
+      operationId: DestroyEnvironment
+      parameters:
+        - name: name
+          in: path
+          description: "Acyl environment name (e.g. foo-bar-baz)"
+          required: true
+          schema:
+            type: string
+      responses:
+        204:
+          description: "No Content"
+        404:
+          description: "Not Found"
+        500:
+          description: "Internal Server Error"
+  /v0/envs/{name}/success:
+    post:
+      deprecated: true
+      tags:
+        - v0
+      summary: "DEPRECATED - Original Lambda-based DQA implementation, no longer supported; create environment success"
+      operationId: CreateEnvironmentSuccess
+      parameters:
+        - name: name
+          in: path
+          description: "Acyl environment name (e.g. foo-bar-baz)"
+          required: true
+          schema:
+            type: string
+      responses:
+        204:
+          description: "No Content"
+  /v0/envs/{name}/failure:
+    post:
+      deprecated: true
+      tags:
+        - v0
+      summary: "DEPRECATED - Original Lambda-based DQA implementation, no longer supported; create environment failure"
+      operationId: CreateEnvironmentFailure
+      parameters:
+        - name: name
+          in: path
+          description: "Acyl environment name (e.g. foo-bar-baz)"
+          required: true
+          schema:
+            type: string
+      responses:
+        204:
+          description: "No Content"
+  /v0/envs/{name}/event:
+    post:
+      deprecated: true
+      tags:
+        - v0
+      summary: "DEPRECATED - Original Lambda-based DQA implementation, no longer supported; create environment event"
+      operationId: CreateEnvironmentEvent
+      parameters:
+        - name: name
+          in: path
+          description: "Acyl environment name (e.g. foo-bar-baz)"
+          required: true
+          schema:
+            type: string
+      responses:
+        204:
+          description: "No Content"
+  ### API v1 ###
+  /v1/envs/_search:
+    get:
+      tags:
+        - v1
+      summary: "Search environments from optional parameters, minimum one parameter required; multiple parameters are combined with a logical AND: (PR = n AND repo = foo/bar AND status = x)"
+      operationId: SearchEnvironmentsV1
+      parameters:
+        - name: pr
+          in: query
+          description: "GitHub Pull Request value, required if repo parameter included"
+          required: false
+          schema:
+            type: string
+            format: integer
+        - name: repo
+          in: query
+          description: "GitHub repository, including organization if applicable (e.g. dollarshaveclub/acyl)"
+          required: false
+          schema:
+            type: string
+        - name: status
+          in: query
+          description: "Integer based on EnvironmentStatus; UnknownStatus: 0, Spawned: 1, Success: 2, Failure: 3, Destroyed: 4, Updating: 5, Cancelled: 6"
+          required: false
+          schema:
+            type: string
+            format: integer
+        - name: source_branch
+          in: query
+          description: "GitHub name of the dev branch"
+          required: false
+          schema:
+            type: string
+        - name: source_sha
+          in: query
+          description: "GitHub SHA for the dev branch"
+          required: false
+          schema:
+            type: string
+        - name: user
+          in: query
+          description: "GitHub username of the user who opened the triggering PR."
+          required: false
+          schema:
+            type: string
+      responses:
+        200:
+          description: "Returns list of detailed environments as defined by QAEnvironment (v1)"
+          content:
+            'application/json':
+              schema:
+                type: array
+                items:
+                  type: object
+                  $ref: '#/components/schemas/QAEnvironment_v1'
+        400:
+          description: "Bad Request"
+        500:
+          description: "Internal Server Error"
+  /v1/envs/_recent:
+    get:
+      tags:
+        - v1
+      summary: "Return all environments within 'n' days"
+      operationId: RecentEnvironments
+      parameters:
+        - name: days
+          in: query
+          description: number of days (default 1)
+          required: false
+          schema:
+            type: string
+            format: integer
+      responses:
+        200:
+          description: "Returns list of detailed environments as defined by QAEnvironment (v1)"
+          content:
+            'application/json':
+              schema:
+                type: array
+                items:
+                  type: object
+                  $ref: '#/components/schemas/QAEnvironment_v1'
+        400:
+          description: "Bad Request"
+        500:
+          description: "Internal Server Error"
+  /v1/envs/{name}:
+    get:
+      tags:
+        - v1
+      summary: "Get environment details"
+      operationId: EnvironmentDetailsV1
+      parameters:
+        - name: name
+          in: path
+          description: "Acyl environment name (e.g. foo-bar-baz)"
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: "Returns detailed environment as defined by QAEnvironment (v1)"
+          content:
+            'application/json':
+              schema:
+                type: object
+                $ref: '#/components/schemas/QAEnvironment_v1'
+        404:
+          description: "Not Found"
+        500:
+          description: "Internal Server Error"
+  ### API v2 ###
+  /v2/envs/_search:
+    get:
+      tags:
+        - v2
+      summary: "Search environments from optional parameters, minimum one parameter required; multiple parameters are combined with a logical AND: (PR = n AND repo = foo/bar AND status = x)"
+      operationId: SearchEnvironmentsV2
+      parameters:
+        - name: pr
+          in: query
+          description: "GitHub Pull Request value, required if repo parameter included"
+          required: false
+          schema:
+            type: string
+            format: integer
+        - name: repo
+          in: query
+          description: "GitHub repository, including organization if applicable (e.g. dollarshaveclub/acyl)"
+          required: false
+          schema:
+            type: string
+        - name: status
+          in: query
+          description: "Integer based on EnvironmentStatus; UnknownStatus: 0, Spawned: 1, Success: 2, Failure: 3, Destroyed: 4, Updating: 5, Cancelled: 6"
+          required: false
+          schema:
+            type: string
+            format: integer
+        - name: source_branch
+          in: query
+          description: "GitHub name of the dev branch"
+          required: false
+          schema:
+            type: string
+        - name: source_sha
+          in: query
+          description: "GitHub SHA for the dev branch"
+          required: false
+          schema:
+            type: string
+        - name: user
+          in: query
+          description: "GitHub username of the user who opened the triggering PR."
+          required: false
+          schema:
+            type: string
+      responses:
+        200:
+          description: "Returns list of detailed environments as defined by QAEnvironment (v2)"
+          content:
+            'application/json':
+              schema:
+                type: array
+                items:
+                  type: object
+                  $ref: '#/components/schemas/QAEnvironment_v2'
+        400:
+          description: "Bad Request"
+        500:
+          description: "Internal Server Error"
+  /v2/envs/{name}:
+    get:
+      tags:
+        - v2
+      summary: "Get environment details"
+      operationId: EnvironmentDetailsV2
+      parameters:
+        - name: name
+          in: path
+          description: "Acyl environment name (e.g. foo-bar-baz)"
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: "Returns detailed environment as defined by QAEnvironment (v2)"
+          content:
+            'application/json':
+              schema:
+                type: object
+                $ref: '#/components/schemas/QAEnvironment_v2'
+        404:
+          description: "Not Found"
+        500:
+          description: "Internal Server Error"
+  /v2/eventlog/{id}:
+    get:
+      tags:
+        - v2
+      summary: "Get event logs by id"
+      operationId: EventLogs
+      parameters:
+        - name: id
+          in: path
+          description: "Acyl event log id"
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        200:
+          description: "Returns the EventLog that include debug logs for requested id, especially helpful troubleshooting failed environments"
+          content:
+            'application/json':
+              schema:
+                type: array
+                items:
+                  type: object
+                  $ref: '#/components/schemas/EventLog'
+        400:
+          description: "Bad Request"
+        404:
+          description: "Not Found"
+        500:
+          description: "Internal Server Error"
