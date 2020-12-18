@@ -514,57 +514,6 @@ paths:
           description: "Not Found"
         500:
           description: "Internal Server Error"
-  /v0/envs/{name}/success:
-    post:
-      deprecated: true
-      tags:
-        - v0
-      summary: "DEPRECATED - Original Lambda-based DQA implementation, no longer supported; create environment success"
-      operationId: CreateEnvironmentSuccess
-      parameters:
-        - name: name
-          in: path
-          description: "Acyl environment name (e.g. foo-bar-baz)"
-          required: true
-          schema:
-            type: string
-      responses:
-        204:
-          description: "No Content"
-  /v0/envs/{name}/failure:
-    post:
-      deprecated: true
-      tags:
-        - v0
-      summary: "DEPRECATED - Original Lambda-based DQA implementation, no longer supported; create environment failure"
-      operationId: CreateEnvironmentFailure
-      parameters:
-        - name: name
-          in: path
-          description: "Acyl environment name (e.g. foo-bar-baz)"
-          required: true
-          schema:
-            type: string
-      responses:
-        204:
-          description: "No Content"
-  /v0/envs/{name}/event:
-    post:
-      deprecated: true
-      tags:
-        - v0
-      summary: "DEPRECATED - Original Lambda-based DQA implementation, no longer supported; create environment event"
-      operationId: CreateEnvironmentEvent
-      parameters:
-        - name: name
-          in: path
-          description: "Acyl environment name (e.g. foo-bar-baz)"
-          required: true
-          schema:
-            type: string
-      responses:
-        204:
-          description: "No Content"
   ### API v1 ###
   /v1/envs/_search:
     get:
