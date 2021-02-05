@@ -293,9 +293,9 @@ func (api *v2api) register(r *muxtrace.Router) error {
 	// v2 routes
 
 	// API token
-	r.HandleFunc("/v2/envs/_search", middlewareChain(authMiddleware.tokenAuth(api.envSearchHandler, models.ReadOnlyPermission))).Methods("GET")
-	r.HandleFunc("/v2/envs/{name}", middlewareChain(authMiddleware.tokenAuth(api.envDetailHandler, models.ReadOnlyPermission))).Methods("GET")
-	r.HandleFunc("/v2/eventlog/{id}", middlewareChain(authMiddleware.tokenAuth(api.eventLogHandler, models.ReadOnlyPermission))).Methods("GET")
+	r.HandleFunc("/v2/envs/_search", middlewareChain(authMiddleware.tokenAuth(authMiddleware.authorize(api.envSearchHandler), models.ReadOnlyPermission))).Methods("GET")
+	r.HandleFunc("/v2/envs/{name}", middlewareChain(authMiddleware.tokenAuth(authMiddleware.authorizeEnv(api.envDetailHandler), models.ReadOnlyPermission))).Methods("GET")
+	r.HandleFunc("/v2/eventlog/{id}", middlewareChain(authMiddleware.tokenAuth(authMiddleware.authorizeEventLog(api.eventLogHandler), models.ReadOnlyPermission))).Methods("GET")
 
 	// Session auth
 	r.HandleFunc("/v2/event/{id}/status", middlewareChain(api.eventStatusHandler, sessionAuthMiddleware.sessionAuth)).Methods("GET")
@@ -327,18 +327,12 @@ func (api *v2api) marshalQAEnvironments(qas []models.QAEnvironment, w http.Respo
 }
 
 func (api *v2api) envDetailHandler(w http.ResponseWriter, r *http.Request) {
-	name := mux.Vars(r)["name"]
-	qa, err := api.dl.GetQAEnvironmentConsistently(r.Context(), name)
-	if err != nil {
-		api.internalError(w, fmt.Errorf("error getting environment: %v", err))
+	qa, ok := r.Context().Value(qaEnvCtxKey).(models.QAEnvironment)
+	if !ok {
+		api.internalError(w, fmt.Errorf("unexpected qa env type from context: %T", qa))
 		return
 	}
-	if qa == nil {
-		api.notfoundError(w)
-		return
-	}
-
-	output := v2QAEnvironmentFromQAEnvironment(qa)
+	output := v2QAEnvironmentFromQAEnvironment(&qa)
 	j, err := json.Marshal(output)
 	if err != nil {
 		api.internalError(w, fmt.Errorf("error marshaling environment: %v", err))
@@ -349,6 +343,11 @@ func (api *v2api) envDetailHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *v2api) envSearchHandler(w http.ResponseWriter, r *http.Request) {
+	apikey, ok := r.Context().Value(apiKeyCtxKey).(models.APIKey)
+	if !ok {
+		api.internalError(w, fmt.Errorf("unexpected api key type from context: %T", apikey))
+		return
+	}
 	qvars := r.URL.Query()
 	if _, ok := qvars["pr"]; ok {
 		if _, ok := qvars["repo"]; !ok {
@@ -372,8 +371,8 @@ func (api *v2api) envSearchHandler(w http.ResponseWriter, r *http.Request) {
 		api.badRequestError(w, fmt.Errorf("at least one search parameter is required"))
 		return
 	}
-	ops := models.EnvSearchParameters{}
 
+	ops := models.EnvSearchParameters{}
 	for k, vs := range qvars {
 		if len(vs) != 1 {
 			api.badRequestError(w, fmt.Errorf("unexpected value for %v: %v", k, vs))
@@ -407,9 +406,16 @@ func (api *v2api) envSearchHandler(w http.ResponseWriter, r *http.Request) {
 			ops.TrackingRef = v
 		}
 	}
-	qas, err := api.dl.Search(r.Context(), ops)
+	qas := []models.QAEnvironment{}
+	var err error
+	if apikey.PermissionLevel == models.AdminPermission {
+		qas, err = api.dl.Search(r.Context(), ops)
+	} else {
+		qas, err = api.dl.SearchEnvsForUser(r.Context(), apikey.GitHubUser, ops)
+	}
 	if err != nil {
 		api.internalError(w, fmt.Errorf("error searching in DB: %v", err))
+		return
 	}
 	api.marshalQAEnvironments(qas, w)
 }
@@ -420,24 +426,15 @@ func (api *v2api) healthCheck(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *v2api) eventLogHandler(w http.ResponseWriter, r *http.Request) {
-	idstr := mux.Vars(r)["id"]
-	id, err := uuid.Parse(idstr)
-	if err != nil {
-		api.badRequestError(w, errors.Wrap(err, "error parsing id"))
+	el, ok := r.Context().Value(eventLogCtxKey).(models.EventLog)
+	if !ok {
+		api.internalError(w, fmt.Errorf("unexpected event log type from context: %T", el))
 		return
 	}
-	el, err := api.dl.GetEventLogByID(id)
-	if err != nil {
-		api.internalError(w, errors.Wrap(err, "error fetching event logs"))
-		return
-	}
-	if el == nil {
-		api.notfoundError(w)
-		return
-	}
-	j, err := json.Marshal(v2EventLogFromEventLog(el))
+	j, err := json.Marshal(v2EventLogFromEventLog(&el))
 	if err != nil {
 		api.internalError(w, errors.Wrap(err, "error marshaling event log"))
+		return
 	}
 	w.Header().Add("Content-Type", "application/json")
 	w.Write(j)

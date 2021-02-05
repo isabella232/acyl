@@ -16,6 +16,7 @@ import (
 
 	"github.com/dollarshaveclub/acyl/pkg/nitro/metahelm"
 	"github.com/dollarshaveclub/acyl/pkg/spawner"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/lib/pq"
 	muxtrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/gorilla/mux"
@@ -32,19 +33,33 @@ func TestAPIv2SearchByTrackingRef(t *testing.T) {
 		t.Fatalf("error setting up test database: %v", err)
 	}
 	defer tdl.TearDown()
-	rc := httptest.NewRecorder()
-	apiv2, err := newV2API(dl, nil, nil, config.ServerConfig{APIKeys: []string{"foo"}}, OAuthConfig{}, testlogger, nil)
+
+	sc := config.ServerConfig{APIKeys: []string{"foo","bar","baz"}}
+	apiv2, err := newV2API(dl, nil, nil, sc, OAuthConfig{}, testlogger, nil)
 	if err != nil {
 		t.Fatalf("error creating api: %v", err)
 	}
-	req, _ := http.NewRequest("GET", "/v2/envs/_search?repo=dollarshaveclub%2Fbiz-baz&tracking_ref=master", nil)
-	req.Header.Set(apiKeyHeader, "foo")
-	apiv2.envSearchHandler(rc, req)
-	if rc.Code != http.StatusOK {
-		t.Fatalf("should have succeeded: %v: %v", rc.Code, string(rc.Body.Bytes()))
+	authMiddleware.apiKeys = sc.APIKeys
+
+	r := muxtrace.NewRouter()
+	apiv2.register(r)
+	ts := httptest.NewServer(r)
+	defer ts.Close()
+	req, _ := http.NewRequest("GET", ts.URL+"/v2/envs/_search?repo=dollarshaveclub%2Fbiz-baz&tracking_ref=master", nil)
+	req.Header.Set(apiKeyHeader, sc.APIKeys[0])
+	hc := &http.Client{}
+	resp, err := hc.Do(req)
+	if err != nil {
+		t.Fatalf("error executing request: %v", err)
+	}
+	bb, _ := ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("should have succeeded: %v: %v", resp.StatusCode, bb)
 	}
 	res := []v2QAEnvironment{}
-	err = json.Unmarshal(rc.Body.Bytes(), &res)
+	err = json.Unmarshal(bb, &res)
 	if err != nil {
 		t.Fatalf("error unmarshaling results: %v", err)
 	}
@@ -56,6 +71,102 @@ func TestAPIv2SearchByTrackingRef(t *testing.T) {
 	}
 }
 
+func TestAPIv2SearchByTrackingRefUserAPIKey(t *testing.T) {
+	dl, tdl := testdatalayer.New(testlogger, t)
+	if err := tdl.Setup(testDataPath); err != nil {
+		t.Fatalf("error setting up test database: %v", err)
+	}
+	defer tdl.TearDown()
+
+	sc := config.ServerConfig{APIKeys: []string{"foo","bar","baz"}}
+	apiv2, err := newV2API(dl, nil, nil, sc, OAuthConfig{}, testlogger, nil)
+	if err != nil {
+		t.Fatalf("error creating api: %v", err)
+	}
+	user := "joshritter"
+	id, err := dl.CreateAPIKey(context.Background(), models.ReadOnlyPermission, "foo-name", "foo-description", user)
+	if err != nil {
+		t.Fatalf("api key creation should have succeeded")
+	}
+	authMiddleware.apiKeys = sc.APIKeys
+	authMiddleware.DL = dl
+
+	r := muxtrace.NewRouter()
+	apiv2.register(r)
+	ts := httptest.NewServer(r)
+	defer ts.Close()
+	req, _ := http.NewRequest("GET", ts.URL+"/v2/envs/_search?repo=dollarshaveclub%2Fbiz-baz&tracking_ref=master&user="+user, nil)
+	req.Header.Set(apiKeyHeader, id.String())
+	hc := &http.Client{}
+	resp, err := hc.Do(req)
+	if err != nil {
+		t.Fatalf("error executing request: %v", err)
+	}
+	bb, _ := ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("should have succeeded: %v: %v", resp.StatusCode, bb)
+	}
+	res := []v2QAEnvironment{}
+	err = json.Unmarshal(bb, &res)
+	if err != nil {
+		t.Fatalf("error unmarshaling results: %v", err)
+	}
+	if len(res) != 1 {
+		t.Fatalf("unexpected results length: %v", len(res))
+	}
+	if res[0].Name != "biz-biz2" {
+		t.Fatalf("bad qa name: %v", res[0].Name)
+	}
+}
+
+func TestAPIv2SearchByTrackingRefUserAPIKeyEmpty(t *testing.T) {
+	dl, tdl := testdatalayer.New(testlogger, t)
+	if err := tdl.Setup(testDataPath); err != nil {
+		t.Fatalf("error setting up test database: %v", err)
+	}
+	defer tdl.TearDown()
+
+	sc := config.ServerConfig{APIKeys: []string{"foo","bar","baz"}}
+	apiv2, err := newV2API(dl, nil, nil, sc, OAuthConfig{}, testlogger, nil)
+	if err != nil {
+		t.Fatalf("error creating api: %v", err)
+	}
+	id, err := dl.CreateAPIKey(context.Background(), models.ReadOnlyPermission, "foo-name", "foo-description", "new-user")
+	if err != nil {
+		t.Fatalf("api key creation should have succeeded")
+	}
+	authMiddleware.apiKeys = sc.APIKeys
+	authMiddleware.DL = dl
+
+	r := muxtrace.NewRouter()
+	apiv2.register(r)
+	ts := httptest.NewServer(r)
+	defer ts.Close()
+	req, _ := http.NewRequest("GET", ts.URL+"/v2/envs/_search?repo=dollarshaveclub%2Fbiz-baz&tracking_ref=master", nil)
+	req.Header.Set(apiKeyHeader, id.String())
+	hc := &http.Client{}
+	resp, err := hc.Do(req)
+	if err != nil {
+		t.Fatalf("error executing request: %v", err)
+	}
+	bb, _ := ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("should have succeeded: %v: %v", resp.StatusCode, bb)
+	}
+	res := []v2QAEnvironment{}
+	err = json.Unmarshal(bb, &res)
+	if err != nil {
+		t.Fatalf("error unmarshaling results: %v", err)
+	}
+	if len(res) != 0 {
+		t.Fatalf("unexpected results length: %v", len(res))
+	}
+}
+
 func TestAPIv2EnvDetails(t *testing.T) {
 	dl, tdl := testdatalayer.New(testlogger, t)
 	if err := tdl.Setup(testDataPath); err != nil {
@@ -63,27 +174,25 @@ func TestAPIv2EnvDetails(t *testing.T) {
 	}
 	defer tdl.TearDown()
 
-	apiv2, err := newV2API(dl, nil, nil, config.ServerConfig{APIKeys: []string{"foo"}}, OAuthConfig{}, testlogger, nil)
+	sc := config.ServerConfig{APIKeys: []string{"foo","bar","baz"}}
+	apiv2, err := newV2API(dl, nil, nil, sc, OAuthConfig{}, testlogger, nil)
 	if err != nil {
 		t.Fatalf("error creating api: %v", err)
 	}
-
-	authMiddleware.apiKeys = []string{"foo"}
+	authMiddleware.apiKeys = sc.APIKeys
+	authMiddleware.DL = dl
 
 	r := muxtrace.NewRouter()
 	apiv2.register(r)
 	ts := httptest.NewServer(r)
 	defer ts.Close()
-
 	req, _ := http.NewRequest("GET", ts.URL+"/v2/envs/biz-biz2", nil)
-	req.Header.Set(apiKeyHeader, "foo")
-
+	req.Header.Set(apiKeyHeader, sc.APIKeys[0])
 	hc := &http.Client{}
 	resp, err := hc.Do(req)
 	if err != nil {
 		t.Fatalf("error executing request: %v", err)
 	}
-
 	bb, _ := ioutil.ReadAll(resp.Body)
 	resp.Body.Close()
 
@@ -97,6 +206,128 @@ func TestAPIv2EnvDetails(t *testing.T) {
 	}
 	if res.SourceRef != "master" {
 		t.Fatalf("bad source ref: %v", res.SourceRef)
+	}
+}
+
+func TestAPIv2EnvDetailsUserAPIKey(t *testing.T) {
+	dl, tdl := testdatalayer.New(testlogger, t)
+	if err := tdl.Setup(testDataPath); err != nil {
+		t.Fatalf("error setting up test database: %v", err)
+	}
+	defer tdl.TearDown()
+
+	sc := config.ServerConfig{APIKeys: []string{"foo","bar","baz"}}
+	apiv2, err := newV2API(dl, nil, nil, sc, OAuthConfig{}, testlogger, nil)
+	if err != nil {
+		t.Fatalf("error creating api: %v", err)
+	}
+	id, err := dl.CreateAPIKey(context.Background(), models.ReadOnlyPermission, "foo-name", "foo-description", "joshritter")
+	if err != nil {
+		t.Fatalf("api key creation should have succeeded")
+	}
+	authMiddleware.apiKeys = sc.APIKeys
+	authMiddleware.DL = dl
+
+	r := muxtrace.NewRouter()
+	apiv2.register(r)
+	ts := httptest.NewServer(r)
+	defer ts.Close()
+	req, _ := http.NewRequest("GET", ts.URL+"/v2/envs/biz-biz2", nil)
+	req.Header.Set(apiKeyHeader, id.String())
+	hc := &http.Client{}
+	resp, err := hc.Do(req)
+	if err != nil {
+		t.Fatalf("error executing request: %v", err)
+	}
+	bb, _ := ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("should have succeeded: %v: %v", resp.StatusCode, bb)
+	}
+	res := v2QAEnvironment{}
+	err = json.Unmarshal(bb, &res)
+	if err != nil {
+		t.Fatalf("error unmarshaling results: %v", err)
+	}
+	if res.SourceRef != "master" {
+		t.Fatalf("bad source ref: %v", res.SourceRef)
+	}
+}
+
+func TestAPIv2EnvDetailsUserAPIKeyForbidden(t *testing.T) {
+	dl, tdl := testdatalayer.New(testlogger, t)
+	if err := tdl.Setup(testDataPath); err != nil {
+		t.Fatalf("error setting up test database: %v", err)
+	}
+	defer tdl.TearDown()
+
+	sc := config.ServerConfig{APIKeys: []string{"foo","bar","baz"}}
+	apiv2, err := newV2API(dl, nil, nil, sc, OAuthConfig{}, testlogger, nil)
+	if err != nil {
+		t.Fatalf("error creating api: %v", err)
+	}
+	id, err := dl.CreateAPIKey(context.Background(), models.ReadOnlyPermission, "foo-name", "foo-description", "foo-user")
+	if err != nil {
+		t.Fatalf("api key creation should have succeeded")
+	}
+	authMiddleware.apiKeys = sc.APIKeys
+	authMiddleware.DL = dl
+
+	r := muxtrace.NewRouter()
+	apiv2.register(r)
+	ts := httptest.NewServer(r)
+	defer ts.Close()
+	req, _ := http.NewRequest("GET", ts.URL+"/v2/envs/biz-biz2", nil)
+	req.Header.Set(apiKeyHeader, id.String())
+	hc := &http.Client{}
+	resp, err := hc.Do(req)
+	if err != nil {
+		t.Fatalf("error executing request: %v", err)
+	}
+	bb, _ := ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
+
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("should have failed: %v: %v", resp.StatusCode, bb)
+	}
+}
+
+func TestAPIv2EnvDetailsUserAPIKeyUnauthorized(t *testing.T) {
+	dl, tdl := testdatalayer.New(testlogger, t)
+	if err := tdl.Setup(testDataPath); err != nil {
+		t.Fatalf("error setting up test database: %v", err)
+	}
+	defer tdl.TearDown()
+
+	sc := config.ServerConfig{APIKeys: []string{"foo","bar","baz"}}
+	apiv2, err := newV2API(dl, nil, nil, sc, OAuthConfig{}, testlogger, nil)
+	if err != nil {
+		t.Fatalf("error creating api: %v", err)
+	}
+	authMiddleware.apiKeys = sc.APIKeys
+	authMiddleware.DL = dl
+
+	r := muxtrace.NewRouter()
+	apiv2.register(r)
+	ts := httptest.NewServer(r)
+	defer ts.Close()
+	req, _ := http.NewRequest("GET", ts.URL+"/v2/envs/biz-biz2", nil)
+	unauthorizedId, err := uuid.NewRandom()
+	if err != nil {
+		t.Fatalf("error creating new random uuid: %v", err)
+	}
+	req.Header.Set(apiKeyHeader, unauthorizedId.String())
+	hc := &http.Client{}
+	resp, err := hc.Do(req)
+	if err != nil {
+		t.Fatalf("error executing request: %v", err)
+	}
+	bb, _ := ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
+
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("should have failed: %v: %v", resp.StatusCode, bb)
 	}
 }
 
@@ -151,53 +382,47 @@ func TestAPIv2EventLog(t *testing.T) {
 	}
 	defer tdl.TearDown()
 
-	apiv2, err := newV2API(dl, nil, nil, config.ServerConfig{APIKeys: []string{"foo"}}, OAuthConfig{}, testlogger, nil)
+	sc := config.ServerConfig{APIKeys: []string{"foo","bar","baz"}}
+	apiv2, err := newV2API(dl, nil, nil, sc, OAuthConfig{}, testlogger, nil)
 	if err != nil {
 		t.Fatalf("error creating api: %v", err)
 	}
-
-	authMiddleware.apiKeys = []string{"foo"}
+	authMiddleware.apiKeys = sc.APIKeys
+	authMiddleware.DL = dl
 
 	r := muxtrace.NewRouter()
 	apiv2.register(r)
 	ts := httptest.NewServer(r)
 	defer ts.Close()
-
 	req, _ := http.NewRequest("GET", ts.URL+"/v2/eventlog/db20d1e7-1e0d-45c6-bfe1-4ea24b7f0000", nil)
-	req.Header.Set(apiKeyHeader, "foo")
-
+	req.Header.Set(apiKeyHeader, sc.APIKeys[0])
 	hc := &http.Client{}
 	resp, err := hc.Do(req)
 	if err != nil {
 		t.Fatalf("error executing request: %v", err)
 	}
-
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("should have 404ed: %v", resp.StatusCode)
 	}
 	resp.Body.Close()
 
 	req, _ = http.NewRequest("GET", ts.URL+"/v2/eventlog/asdf", nil)
-	req.Header.Set(apiKeyHeader, "foo")
-
+	req.Header.Set(apiKeyHeader, sc.APIKeys[0])
 	resp, err = hc.Do(req)
 	if err != nil {
 		t.Fatalf("error executing request 2: %v", err)
 	}
-
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("should have been a 400: %v", resp.StatusCode)
 	}
 	resp.Body.Close()
 
 	req, _ = http.NewRequest("GET", ts.URL+"/v2/eventlog/9beb4f55-bc47-4411-b17d-78e2c0bccb25", nil)
-	req.Header.Set(apiKeyHeader, "foo")
-
+	req.Header.Set(apiKeyHeader, sc.APIKeys[0])
 	resp, err = hc.Do(req)
 	if err != nil {
 		t.Fatalf("error executing request 3: %v", err)
 	}
-
 	bb, _ := ioutil.ReadAll(resp.Body)
 	resp.Body.Close()
 

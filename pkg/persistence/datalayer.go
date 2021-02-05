@@ -38,7 +38,9 @@ type DataLayer interface {
 	SetAminoKubernetesNamespace(ctx context.Context, name, namespace string) error
 	AddEvent(context.Context, string, string) error
 	Search(ctx context.Context, opts models.EnvSearchParameters) ([]QAEnvironment, error)
+	SearchEnvsForUser(ctx context.Context, user string, opts models.EnvSearchParameters) ([]QAEnvironment, error)
 	GetMostRecent(ctx context.Context, n uint) ([]QAEnvironment, error)
+	GetMostRecentForUser(ctx context.Context, user string, n uint) ([]QAEnvironment, error)
 	Close() error
 	HelmDataLayer
 	K8sEnvDataLayer

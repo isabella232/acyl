@@ -604,12 +604,99 @@ func (fdl *FakeDataLayer) Search(ctx context.Context, opts models.EnvSearchParam
 	return envs, nil
 }
 
+func (fdl *FakeDataLayer) SearchEnvsForUser(ctx context.Context, user string, opts models.EnvSearchParameters) ([]QAEnvironment, error) {
+	if isCancelled(ctx) {
+		return nil, ctx.Err()
+	}
+	fdl.doDelay()
+	if opts.User == "" {
+		return nil, fmt.Errorf("search envs for user requires username")
+	}
+	if opts.Pr != 0 && opts.Repo == "" {
+		return nil, fmt.Errorf("search by PR requires repo name")
+	}
+	if opts.TrackingRef != "" && opts.Repo == "" {
+		return nil, fmt.Errorf("search by tracking ref requires repo name")
+	}
+	if opts.Repo != "" && len(opts.Repos) > 0 {
+		return nil, fmt.Errorf("cannot search by repo and repos simultaneously")
+	}
+	if opts.Status != models.UnknownStatus && len(opts.Statuses) > 0 {
+		return nil, fmt.Errorf("cannot search by status and statuses simultaneously")
+	}
+	filter := func(envs []models.QAEnvironment, cf func(e models.QAEnvironment) bool) []models.QAEnvironment {
+		pres := []models.QAEnvironment{}
+		for _, e := range envs {
+			if cf(e) {
+				pres = append(pres, e)
+			}
+		}
+		return pres
+	}
+	envs, _ := fdl.GetQAEnvironmentsByUser(ctx, opts.User)
+	if opts.Pr != 0 {
+		envs = filter(envs, func(e models.QAEnvironment) bool { return e.PullRequest == opts.Pr && e.Repo == opts.Repo })
+	}
+	if opts.Repo != "" {
+		envs = filter(envs, func(e models.QAEnvironment) bool { return e.Repo == opts.Repo })
+	}
+	if len(opts.Repos) > 0 {
+		envs = filter(envs, func(e models.QAEnvironment) bool {
+			for _, r := range opts.Repos {
+				if e.Repo == r {
+					return true
+				}
+			}
+			return false
+		})
+	}
+	if opts.SourceSHA != "" {
+		envs = filter(envs, func(e models.QAEnvironment) bool { return e.SourceSHA == opts.SourceSHA })
+	}
+	if opts.SourceBranch != "" {
+		envs = filter(envs, func(e models.QAEnvironment) bool { return e.SourceBranch == opts.SourceBranch })
+	}
+	if opts.Status != models.UnknownStatus {
+		envs = filter(envs, func(e models.QAEnvironment) bool { return e.Status == opts.Status })
+	}
+	if len(opts.Statuses) > 0 {
+		envs = filter(envs, func(e models.QAEnvironment) bool {
+			for _, s := range opts.Statuses {
+				if e.Status == s {
+					return true
+				}
+			}
+			return false
+		})
+	}
+	if opts.CreatedSince != 0 {
+		envs = filter(envs, func(e models.QAEnvironment) bool { return e.Created.After(time.Now().UTC().Add(-opts.CreatedSince)) })
+	}
+	if opts.TrackingRef != "" {
+		envs = filter(envs, func(e models.QAEnvironment) bool { return e.SourceRef == opts.TrackingRef })
+	}
+	return envs, nil
+}
+
 func (fdl *FakeDataLayer) GetMostRecent(ctx context.Context, n uint) ([]QAEnvironment, error) {
 	if isCancelled(ctx) {
 		return nil, ctx.Err()
 	}
 	fdl.doDelay()
 	envs, _ := fdl.GetQAEnvironments(ctx)
+	sort.Slice(envs, func(i int, j int) bool { return envs[i].Created.After(envs[j].Created) })
+	if int(n) > len(envs) {
+		return envs, nil
+	}
+	return envs[0:n], nil
+}
+
+func (fdl *FakeDataLayer) GetMostRecentForUser(ctx context.Context, user string, n uint) ([]QAEnvironment, error) {
+	if isCancelled(ctx) {
+		return nil, ctx.Err()
+	}
+	fdl.doDelay()
+	envs, _ := fdl.GetQAEnvironmentsByUser(ctx, user)
 	sort.Slice(envs, func(i int, j int) bool { return envs[i].Created.After(envs[j].Created) })
 	if int(n) > len(envs) {
 		return envs, nil
