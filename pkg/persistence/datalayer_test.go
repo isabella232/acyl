@@ -2173,20 +2173,20 @@ func TestDataLayerCreateAPIKey(t *testing.T) {
 			GitHubUser:      "janejones",
 		},
 	}
-	ids := []uuid.UUID{}
+	tokens := []uuid.UUID{}
 	for _, r := range requests {
-		id, err := dl.CreateAPIKey(context.Background(), r.PermissionLevel, r.Name, r.Description, r.GitHubUser)
+		token, err := dl.CreateAPIKey(context.Background(), r.PermissionLevel, r.Name, r.Description, r.GitHubUser)
 		if err != nil {
 			t.Fatalf("create api key should have succeeded: %v", err)
 		}
-		if id == uuid.Nil {
+		if token == uuid.Nil {
 			t.Fatal("create api key should have returned the api key id")
 		}
-		ids = append(ids, id)
+		tokens = append(tokens, token)
 
 	}
-	for n, id := range ids {
-		ak, err := dl.GetAPIKeyById(context.Background(), id)
+	for n, token := range tokens {
+		ak, err := dl.GetAPIKeyByToken(context.Background(), token)
 		if err != nil {
 			t.Fatalf("error getting created api key: %v", err)
 		}
@@ -2196,7 +2196,7 @@ func TestDataLayerCreateAPIKey(t *testing.T) {
 	}
 }
 
-func TestGetAPIKeyById(t *testing.T) {
+func TestGetAPIKeyByToken(t *testing.T) {
 	dl, tdl := NewTestDataLayer(t)
 	if err := tdl.Setup(testDataPath); err != nil {
 		t.Fatalf("error setting up test database: %v", err)
@@ -2209,6 +2209,7 @@ func TestGetAPIKeyById(t *testing.T) {
 			Name:            "my-repo-abc",
 			Description:     "admin for my-repo-abc",
 			GitHubUser:      "janejones",
+			Token:           uuid.MustParse("a69a2832-8b50-11eb-8dcd-0242ac130003"),
 		},
 		{
 			ID:              uuid.MustParse("a5f3f316-098e-11eb-adc1-0242ac120002"),
@@ -2216,6 +2217,7 @@ func TestGetAPIKeyById(t *testing.T) {
 			Name:            "my-repo-abc",
 			Description:     "write for my-repo-abc",
 			GitHubUser:      "jackhandy",
+			Token:           uuid.MustParse("b04691e0-8b50-11eb-8dcd-0242ac130003"),
 		},
 		{
 			ID:              uuid.MustParse("6985dc36-08d6-11eb-adc1-0242ac120002"),
@@ -2223,15 +2225,19 @@ func TestGetAPIKeyById(t *testing.T) {
 			Name:            "my-repo-def",
 			Description:     "read only for my-repo-def",
 			GitHubUser:      "johnsmith",
+			Token:           uuid.MustParse("9f2a9af0-8b50-11eb-8dcd-0242ac130003"),
 		},
 	}
 	for _, r := range requests {
-		apiKey, err := dl.GetAPIKeyById(context.Background(), r.ID)
+		apiKey, err := dl.GetAPIKeyByToken(context.Background(), r.Token)
 		if err != nil {
 			t.Fatalf("error getting api key: %v", err)
 		}
 		if apiKey == nil {
 			t.Fatalf("expected api key returned")
+		}
+		if apiKey.ID != r.ID {
+			t.Fatalf("unexpected api key ID: %v (wanted: %v)", apiKey.ID, r.ID)
 		}
 		if apiKey.PermissionLevel != r.PermissionLevel {
 			t.Fatalf("unexpected Permissions Level: %v (wanted: %v)", apiKey.PermissionLevel, r.PermissionLevel)
@@ -2244,6 +2250,70 @@ func TestGetAPIKeyById(t *testing.T) {
 		}
 		if apiKey.GitHubUser != r.GitHubUser {
 			t.Fatalf("unexpected github user: %v (wanted: %v)", apiKey.GitHubUser, r.GitHubUser)
+		}
+		if apiKey.Token != r.Token {
+			t.Fatalf("unexpected api key Token: %v (wanted: %v)", apiKey.Token, r.Token)
+		}
+	}
+}
+
+func TestGetAPIKeyByID(t *testing.T) {
+	dl, tdl := NewTestDataLayer(t)
+	if err := tdl.Setup(testDataPath); err != nil {
+		t.Fatalf("error setting up test database: %v", err)
+	}
+	defer tdl.TearDown()
+	requests := []models.APIKey{
+		{
+			ID:              uuid.MustParse("9df12e4e-08d6-11eb-adc1-0242ac120002"),
+			PermissionLevel: models.AdminPermission,
+			Name:            "my-repo-abc",
+			Description:     "admin for my-repo-abc",
+			GitHubUser:      "janejones",
+			Token:           uuid.MustParse("a69a2832-8b50-11eb-8dcd-0242ac130003"),
+		},
+		{
+			ID:              uuid.MustParse("a5f3f316-098e-11eb-adc1-0242ac120002"),
+			PermissionLevel: models.WritePermission,
+			Name:            "my-repo-abc",
+			Description:     "write for my-repo-abc",
+			GitHubUser:      "jackhandy",
+			Token:           uuid.MustParse("b04691e0-8b50-11eb-8dcd-0242ac130003"),
+		},
+		{
+			ID:              uuid.MustParse("6985dc36-08d6-11eb-adc1-0242ac120002"),
+			PermissionLevel: models.ReadOnlyPermission,
+			Name:            "my-repo-def",
+			Description:     "read only for my-repo-def",
+			GitHubUser:      "johnsmith",
+			Token:           uuid.MustParse("9f2a9af0-8b50-11eb-8dcd-0242ac130003"),
+		},
+	}
+	for _, r := range requests {
+		apiKey, err := dl.GetAPIKeyByID(context.Background(), r.ID)
+		if err != nil {
+			t.Fatalf("error getting api key: %v", err)
+		}
+		if apiKey == nil {
+			t.Fatalf("expected api key returned")
+		}
+		if apiKey.ID != r.ID {
+			t.Fatalf("unexpected api key ID: %v (wanted: %v)", apiKey.ID, r.ID)
+		}
+		if apiKey.PermissionLevel != r.PermissionLevel {
+			t.Fatalf("unexpected Permissions Level: %v (wanted: %v)", apiKey.PermissionLevel, r.PermissionLevel)
+		}
+		if apiKey.Name != r.Name {
+			t.Fatalf("unexpected name: %v (wanted: %v)", apiKey.Name, r.Name)
+		}
+		if apiKey.Description != r.Description {
+			t.Fatalf("unexpected description: %v (wanted: %v)", apiKey.Description, r.Description)
+		}
+		if apiKey.GitHubUser != r.GitHubUser {
+			t.Fatalf("unexpected github user: %v (wanted: %v)", apiKey.GitHubUser, r.GitHubUser)
+		}
+		if apiKey.Token != r.Token {
+			t.Fatalf("unexpected api key Token: %v (wanted: %v)", apiKey.Token, r.Token)
 		}
 	}
 }
@@ -2278,24 +2348,24 @@ func TestUpdateAPIKeyLastUsed(t *testing.T) {
 		Description:     "foo read only description",
 		GitHubUser:      "jimbob",
 	}
-	id, err := dl.CreateAPIKey(context.Background(), req.PermissionLevel, req.Name, req.Description, req.GitHubUser)
+	token, err := dl.CreateAPIKey(context.Background(), req.PermissionLevel, req.Name, req.Description, req.GitHubUser)
 	if err != nil {
 		t.Fatalf("create api key should have succeeded: %v", err)
 	}
-	if id == uuid.Nil {
+	if token == uuid.Nil {
 		t.Fatal("create api key should have returned the api key id")
 	}
-	apikey, err := dl.GetAPIKeyById(context.Background(), id)
+	apikey, err := dl.GetAPIKeyByToken(context.Background(), token)
 	if err != nil {
 		t.Fatalf("error getting api key: %v", err)
 	}
 	lu := apikey.LastUsed.Time
 	time.Sleep(500 * time.Millisecond)
-	err = dl.UpdateAPIKeyLastUsed(context.Background(), id)
+	err = dl.UpdateAPIKeyLastUsed(context.Background(), token)
 	if err != nil {
 		t.Fatalf("error updating api key: %v", err)
 	}
-	updated, err := dl.GetAPIKeyById(context.Background(), id)
+	updated, err := dl.GetAPIKeyByToken(context.Background(), token)
 	if err != nil {
 		t.Fatalf("error getting api key: %v", err)
 	}
@@ -2304,13 +2374,13 @@ func TestUpdateAPIKeyLastUsed(t *testing.T) {
 	}
 }
 
-func TestDeleteAPIKey(t *testing.T) {
+func TestDeleteAPIKeyByID(t *testing.T) {
 	dl, tdl := NewTestDataLayer(t)
 	if err := tdl.Setup(testDataPath); err != nil {
 		t.Fatalf("error setting up test database: %v", err)
 	}
 	defer tdl.TearDown()
-	ids := []uuid.UUID{}
+	tokens := []uuid.UUID{}
 	requests := []models.APIKey{
 		{
 			PermissionLevel: models.WritePermission,
@@ -2332,21 +2402,25 @@ func TestDeleteAPIKey(t *testing.T) {
 		},
 	}
 	for _, r := range requests {
-		id, err := dl.CreateAPIKey(context.Background(), r.PermissionLevel, r.Name, r.Description, r.GitHubUser)
+		token, err := dl.CreateAPIKey(context.Background(), r.PermissionLevel, r.Name, r.Description, r.GitHubUser)
 		if err != nil {
 			t.Fatalf("create api key should have succeeded: %v", err)
 		}
-		if id == uuid.Nil {
-			t.Fatal("create api key should have returned the api key id")
+		if token == uuid.Nil {
+			t.Fatal("create api key should have returned the api key token")
 		}
-		ids = append(ids, id)
+		tokens = append(tokens, token)
 
 	}
-	err := dl.DeleteAPIKey(context.Background(), ids[1])
+	apikey, err := dl.GetAPIKeyByToken(context.Background(), tokens[1])
+	if apikey == nil {
+		t.Fatalf("error getting api key: %v", err)
+	}
+	err = dl.DeleteAPIKeyByID(context.Background(), apikey.ID)
 	if err != nil {
 		t.Fatalf("error getting created api key: %v", err)
 	}
-	apikey, _ := dl.GetAPIKeyById(context.Background(), ids[1])
+	apikey, _ = dl.GetAPIKeyByToken(context.Background(), apikey.Token)
 	if apikey != nil {
 		t.Fatalf("error api key was not deleted: %v", apikey)
 	}

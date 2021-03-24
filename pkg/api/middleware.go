@@ -63,7 +63,7 @@ func (ra reqAuthorizor) tokenAuth(f http.HandlerFunc, minPermission models.Permi
 				w.WriteHeader(http.StatusForbidden)
 				return
 			}
-			apikey, err := authMiddleware.DL.GetAPIKeyById(r.Context(), keyID)
+			apikey, err := authMiddleware.DL.GetAPIKeyByToken(r.Context(), keyID)
 			if err != nil {
 				log("error getting api key: %v", err)
 				w.WriteHeader(http.StatusInternalServerError)

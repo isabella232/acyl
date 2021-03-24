@@ -1264,7 +1264,11 @@ func (fdl *FakeDataLayer) CreateAPIKey(ctx context.Context, permissionLevel mode
 	if err != nil {
 		return uuid.Nil, errors.Wrap(err, "error creating new random uuid")
 	}
-	key := &models.APIKey{
+	token, err := uuid.NewRandom()
+	if err != nil {
+		return uuid.Nil, errors.Wrap(err, "error creating new random uuid")
+	}
+	ak := &models.APIKey{
 		ID:              id,
 		Created:         time.Now().UTC(),
 		LastUsed:        pq.NullTime{Time: time.Now().UTC(), Valid: true},
@@ -1272,53 +1276,71 @@ func (fdl *FakeDataLayer) CreateAPIKey(ctx context.Context, permissionLevel mode
 		Name:            name,
 		Description:     description,
 		GitHubUser:      githubUser,
+		Token:           token,
 	}
-	fdl.data.apikeys[id] = key
-	return id, nil
+	fdl.data.apikeys[id] = ak
+	return token, nil
 }
 
-func (fdl *FakeDataLayer) GetAPIKeyById(ctx context.Context, id uuid.UUID) (*models.APIKey, error) {
+func (fdl *FakeDataLayer) GetAPIKeyByToken(ctx context.Context, token uuid.UUID) (*models.APIKey, error) {
 	fdl.doDelay()
 	fdl.data.RLock()
 	defer fdl.data.RUnlock()
-	out := models.APIKey{}
+	ak := &models.APIKey{}
+	for _, v := range fdl.data.apikeys {
+		if v.Token == token {
+			ak = v
+		}
+	}
+	if ak.Token == uuid.Nil {
+		return nil, nil
+	}
+	return ak, nil
+}
+
+func (fdl *FakeDataLayer) GetAPIKeyByID(ctx context.Context, id uuid.UUID) (*models.APIKey, error) {
+	fdl.doDelay()
+	fdl.data.RLock()
+	defer fdl.data.RUnlock()
+	ak := &models.APIKey{}
 	ak, ok := fdl.data.apikeys[id]
 	if !ok {
 		return nil, nil
 	}
-	out = *ak
-	return &out, nil
+	return ak, nil
 }
 
 func (fdl *FakeDataLayer) GetAPIKeysByGithubUser(ctx context.Context, githubUser string) ([]*models.APIKey, error) {
 	fdl.doDelay()
 	fdl.data.RLock()
 	defer fdl.data.RUnlock()
-	var keys []*models.APIKey
+	var aks []*models.APIKey
 	for _, v := range fdl.data.apikeys {
 		if v.GitHubUser == githubUser {
-			keys = append(keys, v)
+			aks = append(aks, v)
 		}
 	}
-	if len(keys) == 0 {
+	if len(aks) == 0 {
 		return nil, nil
 	}
-	return keys, nil
+	return aks, nil
 }
 
-func (fdl *FakeDataLayer) UpdateAPIKeyLastUsed(ctx context.Context, id uuid.UUID) error {
+func (fdl *FakeDataLayer) UpdateAPIKeyLastUsed(ctx context.Context, token uuid.UUID) error {
 	fdl.doDelay()
 	fdl.data.Lock()
 	defer fdl.data.Unlock()
-	ak, ok := fdl.data.apikeys[id]
-	if !ok {
-		return nil
+	ak := &models.APIKey{}
+	for _, v := range fdl.data.apikeys {
+		if v.Token == token {
+			ak = v
+		}
 	}
 	ak.LastUsed = pq.NullTime{Time: time.Now().UTC(), Valid: true}
 	return nil
 }
 
-func (fdl *FakeDataLayer) DeleteAPIKey(ctx context.Context, id uuid.UUID) error {
+func (fdl *FakeDataLayer) DeleteAPIKeyByID(ctx context.Context, id uuid.UUID) error {
 	fdl.doDelay()
 	fdl.data.Lock()
 	defer fdl.data.Unlock()
