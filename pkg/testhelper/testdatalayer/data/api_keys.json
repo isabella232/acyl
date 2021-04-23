@@ -7,7 +7,6 @@
       "valid": true
     },
     "permission_level": 1,
-    "name": "my-repo-abc",
     "description": "read only for my-repo-abc",
     "github_user": "johnsmith",
     "token": "45277992-8b55-11eb-8dcd-0242ac130003"
@@ -20,7 +19,6 @@
       "valid": true
     },
     "permission_level": 2,
-    "name": "my-repo-abc",
     "description": "write for my-repo-abc",
     "github_user": "jackhandy",
     "token": "b04691e0-8b50-11eb-8dcd-0242ac130003"
@@ -33,7 +31,6 @@
       "valid": true
     },
     "permission_level": 3,
-    "name": "my-repo-abc",
     "description": "admin for my-repo-abc",
     "github_user": "janejones",
     "token": "a69a2832-8b50-11eb-8dcd-0242ac130003"
@@ -46,7 +43,6 @@
       "valid": true
     },
     "permission_level": 1,
-    "name": "my-repo-def",
     "description": "read only for my-repo-def",
     "github_user": "johnsmith",
     "token": "9f2a9af0-8b50-11eb-8dcd-0242ac130003"
@@ -59,7 +55,6 @@
       "valid": true
     },
     "permission_level": 3,
-    "name": "my-repo-def",
     "description": "write for my-repo-def",
     "github_user": "janejones",
     "token": "2c0d0030-8b55-11eb-8dcd-0242ac130003"
@@ -72,7 +67,6 @@
       "valid": true
     },
     "permission_level": 2,
-    "name": "my-repo-ghi",
     "description": "write for my-repo-ghi",
     "github_user": "johnsmith",
     "token": "3250bbc6-8b55-11eb-8dcd-0242ac130003"

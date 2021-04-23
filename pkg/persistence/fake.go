@@ -58,7 +58,7 @@ func NewFakeDataLayer() *FakeDataLayer {
 }
 
 // NewPopulatedFakeDataLayer returns a FakeDataLayer populated with the supplied data. Input data is not checked for consistency.
-func NewPopulatedFakeDataLayer(qaenvs []models.QAEnvironment, k8senvs []models.KubernetesEnvironment, helmreleases []models.HelmRelease) *FakeDataLayer {
+func NewPopulatedFakeDataLayer(qaenvs []models.QAEnvironment, k8senvs []models.KubernetesEnvironment, helmreleases []models.HelmRelease, apikeys []models.APIKey) *FakeDataLayer {
 	fd := NewFakeDataLayer()
 	for i := range qaenvs {
 		fd.data.d[qaenvs[i].Name] = &qaenvs[i]
@@ -68,6 +68,9 @@ func NewPopulatedFakeDataLayer(qaenvs []models.QAEnvironment, k8senvs []models.K
 	}
 	for _, hr := range helmreleases {
 		fd.data.helm[hr.EnvName] = append(fd.data.helm[hr.EnvName], hr)
+	}
+	for i := range apikeys {
+		fd.data.apikeys[apikeys[i].ID] = &apikeys[i]
 	}
 	return fd
 }
@@ -1256,7 +1259,7 @@ func (fdl *FakeDataLayer) DeleteExpiredUISessions() (uint, error) {
 	return uint(len(rmkeys)), nil
 }
 
-func (fdl *FakeDataLayer) CreateAPIKey(ctx context.Context, permissionLevel models.PermissionLevel, name, description, githubUser string) (uuid.UUID, error) {
+func (fdl *FakeDataLayer) CreateAPIKey(ctx context.Context, permissionLevel models.PermissionLevel, description, githubUser string) (uuid.UUID, error) {
 	fdl.doDelay()
 	fdl.data.Lock()
 	defer fdl.data.Unlock()
@@ -1271,9 +1274,8 @@ func (fdl *FakeDataLayer) CreateAPIKey(ctx context.Context, permissionLevel mode
 	ak := &models.APIKey{
 		ID:              id,
 		Created:         time.Now().UTC(),
-		LastUsed:        pq.NullTime{Time: time.Now().UTC(), Valid: true},
+		LastUsed:        pq.NullTime{Time: time.Time{}, Valid: false},
 		PermissionLevel: permissionLevel,
-		Name:            name,
 		Description:     description,
 		GitHubUser:      githubUser,
 		Token:           token,

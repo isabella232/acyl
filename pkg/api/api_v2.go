@@ -307,6 +307,11 @@ func (api *v2api) register(r *muxtrace.Router) error {
 	r.HandleFunc("/v2/userenvs/{name}/namespace/pod/{pod}/containers", middlewareChain(api.userEnvPodContainersHandler, sessionAuthMiddleware.sessionAuth)).Methods("GET")
 	r.HandleFunc("/v2/userenvs/{name}/namespace/pod/{pod}/logs", middlewareChain(api.userEnvPodLogsHandler, sessionAuthMiddleware.sessionAuth)).Methods("GET")
 
+	// User tokens
+	r.HandleFunc("/v2/user/tokens", middlewareChain(api.apiKeysHandler, sessionAuthMiddleware.sessionAuth)).Methods("GET")
+	r.HandleFunc("/v2/user/token", middlewareChain(api.apiKeyCreateHandler, sessionAuthMiddleware.sessionAuth)).Methods("POST")
+	r.HandleFunc("/v2/user/token/{id}", middlewareChain(api.apiKeyDestroyHandler, sessionAuthMiddleware.sessionAuth)).Methods("DELETE")
+
 	// unauthenticated
 	r.HandleFunc("/v2/health-check", middlewareChain(api.healthCheck)).Methods("GET")
 	return nil
@@ -1081,4 +1086,155 @@ func (api *v2api) userEnvPodLogsHandler(w http.ResponseWriter, r *http.Request) 
 		api.rlogger(r).Logf("error copying pod logs output")
 		w.WriteHeader(http.StatusInternalServerError)
 	}
+}
+
+type v2CreateUserAPIKey struct {
+	Permission  models.PermissionLevel `json:"permission"`
+	Description string                 `json:"description"`
+}
+
+type V2UserAPIKeyResponse struct {
+	User  string    `json:"user"`
+	Token uuid.UUID `json:"token"`
+}
+
+func (api *v2api) apiKeyCreateHandler(w http.ResponseWriter, r *http.Request) {
+	uis, err := getSessionFromContext(r.Context())
+	if err != nil {
+		api.rlogger(r).Logf("session missing from context")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	existingKeys, err := api.dl.GetAPIKeysByGithubUser(r.Context(), uis.GitHubUser)
+	if err != nil {
+		api.rlogger(r).Logf("error getting api keys from db: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if len(existingKeys) >= MaxAPIKeysLimit {
+		api.rlogger(r).Logf("error api keys limit (%v) reached", MaxAPIKeysLimit)
+		w.WriteHeader(http.StatusTooManyRequests)
+		return
+	}
+	reqParams := v2CreateUserAPIKey{}
+	err = json.NewDecoder(r.Body).Decode(&reqParams)
+	if err != nil {
+		api.rlogger(r).Logf("error unmarshaling body: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if reqParams.Permission < MinAPIKeyPermissionLevel || reqParams.Permission > MaxAPIKeyPermissionLevel {
+		api.rlogger(r).Logf("error token permission level invalid")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	keyID, err := api.dl.CreateAPIKey(r.Context(), models.PermissionLevel(reqParams.Permission), reqParams.Description, uis.GitHubUser)
+	if err != nil {
+		api.rlogger(r).Logf("error creating api key: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	resp := V2UserAPIKeyResponse{
+		User:  uis.GitHubUser,
+		Token: keyID,
+	}
+	w.WriteHeader(http.StatusCreated)
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(&resp); err != nil {
+		api.rlogger(r).Logf("error marshaling new user token: %v", err)
+		w.WriteHeader(http.StatusBadRequest)
+	}
+}
+
+type V2UserAPIKeyData struct {
+	ID          uuid.UUID              `json:"id"`
+	Created     time.Time              `json:"created"`
+	LastUsed    pq.NullTime            `json:"last_used"`
+	Permission  models.PermissionLevel `json:"permission"`
+	Description string                 `json:"description"`
+	User        string                 `json:"user"`
+}
+
+func (api *v2api) apiKeysHandler(w http.ResponseWriter, r *http.Request) {
+	uis, err := getSessionFromContext(r.Context())
+	if err != nil {
+		api.rlogger(r).Logf("session missing from context")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	apikeys, err := api.dl.GetAPIKeysByGithubUser(r.Context(), uis.GitHubUser)
+	if err != nil {
+		api.rlogger(r).Logf("error getting api keys from db: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if len(apikeys) == 0 {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	if uis.GitHubUser != apikeys[0].GitHubUser {
+		api.rlogger(r).Logf("action not authorized by user: %v", uis.GitHubUser)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	v2uakds := make([]V2UserAPIKeyData, 0, len(apikeys))
+	for _, apikey := range apikeys {
+		v2uakds = append(v2uakds, V2UserAPIKeyData{
+			ID:          apikey.ID,
+			Created:     apikey.Created,
+			LastUsed:    apikey.LastUsed,
+			Permission:  apikey.PermissionLevel,
+			Description: apikey.Description,
+			User:        apikey.GitHubUser,
+		})
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(&v2uakds); err != nil {
+		api.rlogger(r).Logf("error marshaling new user token: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+}
+
+func (api *v2api) apiKeyDestroyHandler(w http.ResponseWriter, r *http.Request) {
+	uis, err := getSessionFromContext(r.Context())
+	if err != nil {
+		api.rlogger(r).Logf("session missing from context")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	id := mux.Vars(r)["id"]
+	if id == "" {
+		api.rlogger(r).Logf("error token id required")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	keyID, err := uuid.Parse(id)
+	if err != nil {
+		api.rlogger(r).Logf("error parsing user token: %v", err)
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+	apikey, err := api.dl.GetAPIKeyByID(r.Context(), keyID)
+	if err != nil {
+		api.rlogger(r).Logf("error getting api key from db: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if apikey == nil {
+		api.rlogger(r).Logf("no key found for id: %v", id)
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	if uis.GitHubUser != apikey.GitHubUser {
+		api.rlogger(r).Logf("action not authorized by user: %v", uis.GitHubUser)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	err = api.dl.DeleteAPIKeyByID(context.Background(), apikey.ID)
+	if err != nil {
+		api.logger.Printf("error deleting user token: %v: %v", id, err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

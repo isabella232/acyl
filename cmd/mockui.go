@@ -25,6 +25,7 @@ import (
 	lorem "github.com/dollarshaveclub/acyl/pkg/persistence/golorem"
 	"github.com/dollarshaveclub/acyl/pkg/spawner"
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	v1 "k8s.io/api/core/v1"
 
 	"github.com/dollarshaveclub/acyl/pkg/config"
@@ -173,7 +174,17 @@ func loadMockData(fpath string) *persistence.FakeDataLayer {
 	for i := range td.HelmReleases {
 		td.HelmReleases[i].Created = now.AddDate(0, 0, -(i * 3))
 	}
-	fdl := persistence.NewPopulatedFakeDataLayer(td.QAEnvironments, td.K8sEnvironments, td.HelmReleases)
+	for i := range td.APIKeys {
+		td.APIKeys[i].Created = now.AddDate(0, 0, -(i * 3))
+		if td.APIKeys[i].LastUsed.Valid {
+			td.APIKeys[i].LastUsed = pq.NullTime {
+				Time: td.APIKeys[i].Created.Add(1 * time.Hour),
+				Valid: true,
+			}
+		}
+		log.Printf("updated time for fake api keys for user: %v, description: %v: permission level: %v created: %v last used: %v", td.APIKeys[i].GitHubUser, td.APIKeys[i].Description, td.APIKeys[i].PermissionLevel, td.APIKeys[i].Created, td.APIKeys[i].LastUsed)
+	}
+	fdl := persistence.NewPopulatedFakeDataLayer(td.QAEnvironments, td.K8sEnvironments, td.HelmReleases, td.APIKeys)
 	for _, qae := range td.QAEnvironments {
 		log.Printf("creating fake create event for env: %v, repo: %v, user: %v: %v", qae.Name, qae.Repo, qae.User, fdl.NewFakeCreateEvent(qae.Created, qae.Repo, qae.User, qae.Name))
 	}

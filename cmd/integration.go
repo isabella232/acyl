@@ -318,6 +318,7 @@ type testData struct {
 	QAEnvironments  []models.QAEnvironment         `json:"qa_environments"`
 	K8sEnvironments []models.KubernetesEnvironment `json:"kubernetes_environments"`
 	HelmReleases    []models.HelmRelease           `json:"helm_releases"`
+	APIKeys         []models.APIKey                `json:"api_keys"`
 }
 
 func loadData() (persistence.DataLayer, error) {
@@ -329,7 +330,7 @@ func loadData() (persistence.DataLayer, error) {
 	if err := json.Unmarshal(d, &td); err != nil {
 		return nil, errors.Wrap(err, "error unmarshaling data file")
 	}
-	return persistence.NewPopulatedFakeDataLayer(td.QAEnvironments, td.K8sEnvironments, td.HelmReleases), nil
+	return persistence.NewPopulatedFakeDataLayer(td.QAEnvironments, td.K8sEnvironments, td.HelmReleases, td.APIKeys), nil
 }
 
 type testWebhooks struct {

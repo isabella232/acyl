@@ -84,7 +84,7 @@ func TestAPIv2SearchByTrackingRefUserAPIKey(t *testing.T) {
 		t.Fatalf("error creating api: %v", err)
 	}
 	user := "joshritter"
-	id, err := dl.CreateAPIKey(context.Background(), models.ReadOnlyPermission, "foo-name", "foo-description", user)
+	id, err := dl.CreateAPIKey(context.Background(), models.ReadOnlyPermission, "foo-description", user)
 	if err != nil {
 		t.Fatalf("api key creation should have succeeded")
 	}
@@ -133,7 +133,7 @@ func TestAPIv2SearchByTrackingRefUserAPIKeyEmpty(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error creating api: %v", err)
 	}
-	id, err := dl.CreateAPIKey(context.Background(), models.ReadOnlyPermission, "foo-name", "foo-description", "new-user")
+	id, err := dl.CreateAPIKey(context.Background(), models.ReadOnlyPermission, "foo-description", "new-user")
 	if err != nil {
 		t.Fatalf("api key creation should have succeeded")
 	}
@@ -221,7 +221,7 @@ func TestAPIv2EnvDetailsUserAPIKey(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error creating api: %v", err)
 	}
-	id, err := dl.CreateAPIKey(context.Background(), models.ReadOnlyPermission, "foo-name", "foo-description", "joshritter")
+	id, err := dl.CreateAPIKey(context.Background(), models.ReadOnlyPermission, "foo-description", "joshritter")
 	if err != nil {
 		t.Fatalf("api key creation should have succeeded")
 	}
@@ -267,7 +267,7 @@ func TestAPIv2EnvDetailsUserAPIKeyForbidden(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error creating api: %v", err)
 	}
-	id, err := dl.CreateAPIKey(context.Background(), models.ReadOnlyPermission, "foo-name", "foo-description", "foo-user")
+	id, err := dl.CreateAPIKey(context.Background(), models.ReadOnlyPermission, "foo-description", "foo-user")
 	if err != nil {
 		t.Fatalf("api key creation should have succeeded")
 	}
@@ -916,5 +916,446 @@ func TestAPIv2UserEnvNamePodLogs(t *testing.T) {
 	}
 	if err := scanner.Err(); err != nil {
 		t.Fatalf("error lines returned exceeded expected %v, actual %v", nLogLines, count)
+	}
+}
+
+func TestAPIv2UserTokenCreate(t *testing.T) {
+	dl, tdl := testdatalayer.New(testlogger, t)
+	if err := tdl.Setup(testDataPath); err != nil {
+		t.Fatalf("error setting up test database: %v", err)
+	}
+	defer tdl.TearDown()
+	logger := log.New(os.Stdout, "", log.LstdFlags)
+	oauthcfg := OAuthConfig{
+		AppGHClientFactoryFunc: func(_ string) ghclient.GitHubAppInstallationClient {
+			return &ghclient.FakeRepoClient{
+				GetUserFunc: func(_ context.Context) (string, error) {
+					return "bobsmith", nil
+				},
+				GetUserAppRepoPermissionsFunc: func(_ context.Context, _ int64) (map[string]ghclient.AppRepoPermissions, error) {
+					return map[string]ghclient.AppRepoPermissions{
+						"dollarshaveclub/foo-bar": ghclient.AppRepoPermissions{
+							Repo: "dollarshaveclub/foo-bar",
+							Pull: true,
+						},
+					}, nil
+				},
+			}
+		},
+	}
+	copy(oauthcfg.UserTokenEncKey[:], []byte("00000000000000000000000000000000"))
+	apiv2, err := newV2API(dl, nil, nil, config.ServerConfig{APIKeys: []string{"foo"}}, oauthcfg, logger, metahelm.FakeKubernetesReporter{})
+	if err != nil {
+		t.Fatalf("error creating api: %v", err)
+	}
+	uis := models.UISession{
+		Authenticated: true,
+		GitHubUser:    "bobsmith",
+	}
+	uis.EncryptandSetUserToken([]byte("foo"), oauthcfg.UserTokenEncKey)
+	apikey := models.APIKey{
+		GitHubUser:      uis.GitHubUser,
+		PermissionLevel: models.ReadOnlyPermission,
+		Description:     "my token description",
+	}
+	body := fmt.Sprintf("{\"permission\":%v,\"description\":\"%v\"}", 7, apikey.Description)
+	req, _ := http.NewRequest("POST", fmt.Sprintf("https://foo.com/v2/user/token"), bytes.NewReader([]byte(body)))
+	req = req.Clone(withSession(req.Context(), uis))
+	rc := httptest.NewRecorder()
+	apiv2.apiKeyCreateHandler(rc, req)
+	res := rc.Result()
+	if res.StatusCode != http.StatusBadRequest {
+		t.Fatalf("bad status code: %v", res.StatusCode)
+	}
+	body = fmt.Sprintf("{\"permission\":%v,\"description\":\"%v\"}", int(apikey.PermissionLevel), apikey.Description)
+	req, _ = http.NewRequest("POST", fmt.Sprintf("https://foo.com/v2/user/token"), bytes.NewReader([]byte(body)))
+	req = req.Clone(withSession(req.Context(), uis))
+	rc = httptest.NewRecorder()
+	apiv2.apiKeyCreateHandler(rc, req)
+	res = rc.Result()
+	if res.StatusCode != http.StatusCreated {
+		t.Fatalf("bad status code: %v", res.StatusCode)
+	}
+	out := V2UserAPIKeyResponse{}
+	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
+		t.Fatalf("error decoding response: %v", err)
+	}
+	res.Body.Close()
+	if out.Token == uuid.Nil {
+		t.Fatalf("expected valid token")
+	}
+	if out.User != apikey.GitHubUser {
+		t.Fatalf("expected user to match")
+	}
+	aks, err := dl.GetAPIKeysByGithubUser(context.Background(), out.User)
+	if err != nil || aks == nil {
+		t.Fatalf("expected api keys returned for new user")
+	}
+	if !aks[0].LastUsed.Valid && !time.Time.IsZero(aks[0].LastUsed.Time) {
+		t.Fatalf("expected last used to not be set for newly created key")
+	}
+}
+
+func TestAPIv2UserTokenCreateAdminDenied(t *testing.T) {
+	dl, tdl := testdatalayer.New(testlogger, t)
+	if err := tdl.Setup(testDataPath); err != nil {
+		t.Fatalf("error setting up test database: %v", err)
+	}
+	defer tdl.TearDown()
+	logger := log.New(os.Stdout, "", log.LstdFlags)
+	oauthcfg := OAuthConfig{
+		AppGHClientFactoryFunc: func(_ string) ghclient.GitHubAppInstallationClient {
+			return &ghclient.FakeRepoClient{
+				GetUserFunc: func(_ context.Context) (string, error) {
+					return "bobsmith", nil
+				},
+				GetUserAppRepoPermissionsFunc: func(_ context.Context, _ int64) (map[string]ghclient.AppRepoPermissions, error) {
+					return map[string]ghclient.AppRepoPermissions{
+						"dollarshaveclub/foo-bar": ghclient.AppRepoPermissions{
+							Repo: "dollarshaveclub/foo-bar",
+							Pull: true,
+						},
+					}, nil
+				},
+			}
+		},
+	}
+	copy(oauthcfg.UserTokenEncKey[:], []byte("00000000000000000000000000000000"))
+	apiv2, err := newV2API(dl, nil, nil, config.ServerConfig{APIKeys: []string{"foo"}}, oauthcfg, logger, metahelm.FakeKubernetesReporter{})
+	if err != nil {
+		t.Fatalf("error creating api: %v", err)
+	}
+	uis := models.UISession{
+		Authenticated: true,
+		GitHubUser:    "bobsmith",
+	}
+	uis.EncryptandSetUserToken([]byte("foo"), oauthcfg.UserTokenEncKey)
+	apikey := models.APIKey{
+		GitHubUser:      uis.GitHubUser,
+		PermissionLevel: models.AdminPermission,
+		Description:     "my token description",
+	}
+	body := fmt.Sprintf("{\"permission\":%v,\"description\":\"%v\"}", int(apikey.PermissionLevel), apikey.Description)
+	req, _ := http.NewRequest("POST", fmt.Sprintf("https://foo.com/v2/user/token"), bytes.NewReader([]byte(body)))
+	req = req.Clone(withSession(req.Context(), uis))
+	rc := httptest.NewRecorder()
+	apiv2.apiKeyCreateHandler(rc, req)
+	res := rc.Result()
+	if res.StatusCode != http.StatusBadRequest {
+		t.Fatalf("bad status code: %v", res.StatusCode)
+	}
+}
+
+func TestAPIv2UserTokenCreateLimit(t *testing.T) {
+	dl, tdl := testdatalayer.New(testlogger, t)
+	if err := tdl.Setup(testDataPath); err != nil {
+		t.Fatalf("error setting up test database: %v", err)
+	}
+	defer tdl.TearDown()
+	logger := log.New(os.Stdout, "", log.LstdFlags)
+	oauthcfg := OAuthConfig{
+		AppGHClientFactoryFunc: func(_ string) ghclient.GitHubAppInstallationClient {
+			return &ghclient.FakeRepoClient{
+				GetUserFunc: func(_ context.Context) (string, error) {
+					return "bobsmith", nil
+				},
+				GetUserAppRepoPermissionsFunc: func(_ context.Context, _ int64) (map[string]ghclient.AppRepoPermissions, error) {
+					return map[string]ghclient.AppRepoPermissions{
+						"dollarshaveclub/foo-bar": ghclient.AppRepoPermissions{
+							Repo: "dollarshaveclub/foo-bar",
+							Pull: true,
+						},
+					}, nil
+				},
+			}
+		},
+	}
+	copy(oauthcfg.UserTokenEncKey[:], []byte("00000000000000000000000000000000"))
+	apiv2, err := newV2API(dl, nil, nil, config.ServerConfig{APIKeys: []string{"foo"}}, oauthcfg, logger, metahelm.FakeKubernetesReporter{})
+	if err != nil {
+		t.Fatalf("error creating api: %v", err)
+	}
+	uis := models.UISession{
+		Authenticated: true,
+		GitHubUser:    "bobsmith",
+	}
+	uis.EncryptandSetUserToken([]byte("foo"), oauthcfg.UserTokenEncKey)
+	apikeys := []models.APIKey{
+		models.APIKey{
+			GitHubUser:      uis.GitHubUser,
+			PermissionLevel: models.ReadOnlyPermission,
+			Description:     "my write token description",
+		},
+		models.APIKey{
+			GitHubUser:      uis.GitHubUser,
+			PermissionLevel: models.WritePermission,
+			Description:     "my write token description",
+		},
+		models.APIKey{
+			GitHubUser:      uis.GitHubUser,
+			PermissionLevel: models.WritePermission,
+			Description:     "my write token description",
+		},
+		models.APIKey{
+			GitHubUser:      uis.GitHubUser,
+			PermissionLevel: models.ReadOnlyPermission,
+		},
+		models.APIKey{
+			GitHubUser:      uis.GitHubUser,
+			PermissionLevel: models.ReadOnlyPermission,
+		},
+		models.APIKey{
+			GitHubUser:      uis.GitHubUser,
+			PermissionLevel: models.WritePermission,
+			Description:     "my write token description",
+		},
+		models.APIKey{
+			GitHubUser:      uis.GitHubUser,
+			PermissionLevel: models.WritePermission,
+			Description:     "my write token description",
+		},
+		models.APIKey{
+			GitHubUser:      uis.GitHubUser,
+			PermissionLevel: models.ReadOnlyPermission,
+			Description:     "my read token description",
+		},
+		models.APIKey{
+			GitHubUser:      uis.GitHubUser,
+			PermissionLevel: models.WritePermission,
+			Description:     "my write token description",
+		},
+		models.APIKey{
+			GitHubUser:      uis.GitHubUser,
+			PermissionLevel: models.ReadOnlyPermission,
+			Description:     "my read token description",
+		},
+	}
+	for _, apikey := range apikeys {
+		body := fmt.Sprintf("{\"permission\":%v,\"description\":\"%v\"}", int(apikey.PermissionLevel), apikey.Description)
+		req, _ := http.NewRequest("POST", fmt.Sprintf("https://foo.com/v2/user/token"), bytes.NewReader([]byte(body)))
+		req = req.Clone(withSession(req.Context(), uis))
+		rc := httptest.NewRecorder()
+		apiv2.apiKeyCreateHandler(rc, req)
+		res := rc.Result()
+		if res.StatusCode != http.StatusCreated {
+			t.Fatalf("bad status code: %v", res.StatusCode)
+		}
+		out := V2UserAPIKeyResponse{}
+		if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
+			t.Fatalf("error decoding response: %v", err)
+		}
+		res.Body.Close()
+		if out.Token == uuid.Nil {
+			t.Fatalf("expected valid token")
+		}
+		if out.User != apikey.GitHubUser {
+			t.Fatalf("expected user to match")
+		}
+	}
+	apikey := models.APIKey{
+		GitHubUser:      uis.GitHubUser,
+		PermissionLevel: models.ReadOnlyPermission,
+		Description:     "my token description",
+	}
+	body := fmt.Sprintf("{\"permission\":%v,\"description\":\"%v\"}", int(apikey.PermissionLevel), apikey.Description)
+	req, _ := http.NewRequest("POST", fmt.Sprintf("https://foo.com/v2/user/token"), bytes.NewReader([]byte(body)))
+	req = req.Clone(withSession(req.Context(), uis))
+	rc := httptest.NewRecorder()
+	apiv2.apiKeyCreateHandler(rc, req)
+	res := rc.Result()
+	if res.StatusCode != http.StatusTooManyRequests {
+		t.Fatalf("bad status code: %v", res.StatusCode)
+	}
+}
+
+func TestAPIv2UserTokens(t *testing.T) {
+	dl, tdl := testdatalayer.New(testlogger, t)
+	if err := tdl.Setup(testDataPath); err != nil {
+		t.Fatalf("error setting up test database: %v", err)
+	}
+	defer tdl.TearDown()
+	logger := log.New(os.Stdout, "", log.LstdFlags)
+	oauthcfg := OAuthConfig{
+		AppGHClientFactoryFunc: func(_ string) ghclient.GitHubAppInstallationClient {
+			return &ghclient.FakeRepoClient{
+				GetUserFunc: func(_ context.Context) (string, error) {
+					return "bobsmith", nil
+				},
+				GetUserAppRepoPermissionsFunc: func(_ context.Context, _ int64) (map[string]ghclient.AppRepoPermissions, error) {
+					return map[string]ghclient.AppRepoPermissions{
+						"dollarshaveclub/foo-bar": ghclient.AppRepoPermissions{
+							Repo: "dollarshaveclub/foo-bar",
+							Pull: true,
+						},
+					}, nil
+				},
+			}
+		},
+	}
+	copy(oauthcfg.UserTokenEncKey[:], []byte("00000000000000000000000000000000"))
+	apiv2, err := newV2API(dl, nil, nil, config.ServerConfig{APIKeys: []string{"foo"}}, oauthcfg, logger, metahelm.FakeKubernetesReporter{})
+	if err != nil {
+		t.Fatalf("error creating api: %v", err)
+	}
+	uis := models.UISession{
+		Authenticated: true,
+		GitHubUser:    "jimjackson",
+	}
+	uis.EncryptandSetUserToken([]byte("foo"), oauthcfg.UserTokenEncKey)
+	apikeys := []models.APIKey{
+		models.APIKey{
+			GitHubUser:      uis.GitHubUser,
+			PermissionLevel: models.ReadOnlyPermission,
+			Description:     "my write token description",
+		},
+		models.APIKey{
+			GitHubUser:      uis.GitHubUser,
+			PermissionLevel: models.WritePermission,
+			Description:     "my write token description",
+		},
+		models.APIKey{
+			GitHubUser:      uis.GitHubUser,
+			PermissionLevel: models.WritePermission,
+		},
+		models.APIKey{
+			GitHubUser:      uis.GitHubUser,
+			PermissionLevel: models.ReadOnlyPermission,
+		},
+	}
+	ids := []uuid.UUID{}
+	for _, ak := range apikeys {
+		body := fmt.Sprintf("{\"permission\":%v,\"description\":\"%v\"}", int(ak.PermissionLevel), ak.Description)
+		req, _ := http.NewRequest("POST", fmt.Sprintf("https://foo.com/v2/user/token"), bytes.NewReader([]byte(body)))
+		req = req.Clone(withSession(req.Context(), uis))
+		rc := httptest.NewRecorder()
+		apiv2.apiKeyCreateHandler(rc, req)
+		res := rc.Result()
+		if res.StatusCode != http.StatusCreated {
+			t.Fatalf("bad status code: %v", res.StatusCode)
+		}
+		out := V2UserAPIKeyResponse{}
+		if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
+			t.Fatalf("error decoding response: %v", err)
+		}
+		res.Body.Close()
+		if out.Token == uuid.Nil {
+			t.Fatalf("expected valid token")
+		}
+		if out.User != ak.GitHubUser {
+			t.Fatalf("expected user to match")
+		}
+		ids = append(ids, out.Token)
+	}
+	req, _ := http.NewRequest("GET", fmt.Sprintf("https://foo.com/v2/user/tokens"), nil)
+	req = req.Clone(withSession(req.Context(), uis))
+	rc := httptest.NewRecorder()
+	apiv2.apiKeysHandler(rc, req)
+	res := rc.Result()
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("bad status code: %v", res.StatusCode)
+	}
+	out := []V2UserAPIKeyData{}
+	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
+		t.Fatalf("error decoding response: %v", err)
+	}
+	if len(out) != len(apikeys) {
+		t.Fatalf("error incorrect number of keys returned; expected: %v, got %v", len(apikeys), len(out))
+	}
+	res.Body.Close()
+	for n, tk := range out {
+		if tk.User != apikeys[n].GitHubUser {
+			t.Fatalf("expected user to match; expected: %v, got: %v", apikeys[n].GitHubUser, tk.User)
+		}
+		if tk.Description != apikeys[n].Description {
+			t.Fatalf("expected description to match; expected: %v, got: %v", apikeys[n].Description, tk.Description)
+		}
+		if tk.Permission != apikeys[n].PermissionLevel {
+			t.Fatalf("expected permissions to match; expected: %v, got: %v", apikeys[n].PermissionLevel, tk.Permission)
+		}
+		if !tk.LastUsed.Valid && !time.Time.IsZero(tk.LastUsed.Time) {
+			t.Fatalf("expected last used to be zero value; got: %v", tk.LastUsed.Time)
+		}
+	}
+}
+
+func TestAPIv2UserTokenDestroy(t *testing.T) {
+	dl, tdl := testdatalayer.New(testlogger, t)
+	if err := tdl.Setup(testDataPath); err != nil {
+		t.Fatalf("error setting up test database: %v", err)
+	}
+	defer tdl.TearDown()
+	logger := log.New(os.Stdout, "", log.LstdFlags)
+	oauthcfg := OAuthConfig{
+		AppGHClientFactoryFunc: func(_ string) ghclient.GitHubAppInstallationClient {
+			return &ghclient.FakeRepoClient{
+				GetUserFunc: func(_ context.Context) (string, error) {
+					return "bobsmith", nil
+				},
+				GetUserAppRepoPermissionsFunc: func(_ context.Context, _ int64) (map[string]ghclient.AppRepoPermissions, error) {
+					return map[string]ghclient.AppRepoPermissions{
+						"dollarshaveclub/foo-bar": ghclient.AppRepoPermissions{
+							Repo: "dollarshaveclub/foo-bar",
+							Pull: true,
+						},
+					}, nil
+				},
+			}
+		},
+	}
+	copy(oauthcfg.UserTokenEncKey[:], []byte("00000000000000000000000000000000"))
+	apiv2, err := newV2API(dl, nil, nil, config.ServerConfig{APIKeys: []string{"foo"}}, oauthcfg, logger, metahelm.FakeKubernetesReporter{})
+	if err != nil {
+		t.Fatalf("error creating api: %v", err)
+	}
+	uis := models.UISession{
+		Authenticated: true,
+		GitHubUser:    "bobsmith",
+	}
+	uis.EncryptandSetUserToken([]byte("foo"), oauthcfg.UserTokenEncKey)
+	apikey := models.APIKey{
+		GitHubUser:      uis.GitHubUser,
+		PermissionLevel: models.ReadOnlyPermission,
+		Description:     "my token description",
+	}
+	body := fmt.Sprintf("{\"permission\":%v,\"description\":\"%v\"}", int(apikey.PermissionLevel), apikey.Description)
+	req, _ := http.NewRequest("POST", fmt.Sprintf("https://foo.com/v2/user/token"), bytes.NewReader([]byte(body)))
+	req = req.Clone(withSession(req.Context(), uis))
+	rc := httptest.NewRecorder()
+	apiv2.apiKeyCreateHandler(rc, req)
+	res := rc.Result()
+	if res.StatusCode != http.StatusCreated {
+		t.Fatalf("bad status code: %v", res.StatusCode)
+	}
+	out := V2UserAPIKeyResponse{}
+	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
+		t.Fatalf("error decoding response: %v", err)
+	}
+	res.Body.Close()
+	if out.Token == uuid.Nil {
+		t.Fatalf("expected valid token")
+	}
+	req, _ = http.NewRequest("GET", fmt.Sprintf("https://foo.com/v2/user/tokens"), nil)
+	req = req.Clone(withSession(req.Context(), uis))
+	rc = httptest.NewRecorder()
+	apiv2.apiKeysHandler(rc, req)
+	res = rc.Result()
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("bad status code: %v", res.StatusCode)
+	}
+	aks := []V2UserAPIKeyData{}
+	if err := json.NewDecoder(res.Body).Decode(&aks); err != nil {
+		t.Fatalf("error decoding response: %v", err)
+	}
+	if len(aks) != 1 {
+		t.Fatalf("error incorrect number of keys returned; expected: 1, got %v", len(aks))
+	}
+	req, _ = http.NewRequest("DELETE", fmt.Sprintf("https://foo.com/v2/user/token/%v", aks[0].ID), nil)
+	req = mux.SetURLVars(req, map[string]string{"id": aks[0].ID.String()})
+	req = req.Clone(withSession(req.Context(), uis))
+	rc = httptest.NewRecorder()
+	apiv2.apiKeyDestroyHandler(rc, req)
+	res = rc.Result()
+	if res.StatusCode != http.StatusNoContent {
+		t.Fatalf("bad status code: %v", res.StatusCode)
 	}
 }

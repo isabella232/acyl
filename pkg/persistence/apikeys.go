@@ -13,7 +13,7 @@ import (
 )
 
 // CreateAPIKey creates a new user api key
-func (pg *PGLayer) CreateAPIKey(ctx context.Context, permissionLevel models.PermissionLevel, name, description, githubUser string) (uuid.UUID, error) {
+func (pg *PGLayer) CreateAPIKey(ctx context.Context, permissionLevel models.PermissionLevel, description, githubUser string) (uuid.UUID, error) {
 	id, err := uuid.NewRandom()
 	if err != nil {
 		return uuid.Nil, errors.Wrap(err, "error creating new random uuid")
@@ -25,9 +25,7 @@ func (pg *PGLayer) CreateAPIKey(ctx context.Context, permissionLevel models.Perm
 	in := &models.APIKey{
 		ID:              id,
 		Created:         time.Now().UTC(),
-		LastUsed:        pq.NullTime{Time: time.Now().UTC(), Valid: true},
 		PermissionLevel: permissionLevel,
-		Name:            name,
 		Description:     description,
 		GitHubUser:      githubUser,
 		Token:           token,
@@ -53,10 +51,10 @@ func (pg *PGLayer) GetAPIKeyByToken(ctx context.Context, token uuid.UUID) (*mode
 }
 
 // GetAPIKeyByID returns the api key by id, nil if not found
-func (pg *PGLayer) GetAPIKeyByID(ctx context.Context, token uuid.UUID) (*models.APIKey, error) {
+func (pg *PGLayer) GetAPIKeyByID(ctx context.Context, id uuid.UUID) (*models.APIKey, error) {
 	out := &models.APIKey{}
 	q := `SELECT ` + out.Columns() + ` FROM api_keys WHERE id = $1;`
-	if err := pg.db.QueryRow(q, token).Scan(out.ScanValues()...); err != nil {
+	if err := pg.db.QueryRow(q, id).Scan(out.ScanValues()...); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}

@@ -123,7 +123,7 @@ func TestAPIv1EnvDetailsUserAPIKey(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error creating api: %v", err)
 	}
-	id, err := dl.CreateAPIKey(context.Background(), models.ReadOnlyPermission, "foo-name", "foo-description", "bobsmith")
+	id, err := dl.CreateAPIKey(context.Background(), models.ReadOnlyPermission, "foo-description", "bobsmith")
 	if err != nil {
 		t.Fatalf("api key creation should have succeeded")
 	}
@@ -175,7 +175,7 @@ func TestAPIv1EnvDetailsUserAPIKeyForbidden(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error creating api: %v", err)
 	}
-	id, err := dl.CreateAPIKey(context.Background(), models.ReadOnlyPermission, "foo-name", "foo-description", "foo-user")
+	id, err := dl.CreateAPIKey(context.Background(), models.ReadOnlyPermission, "foo-description", "foo-user")
 	if err != nil {
 		t.Fatalf("api key creation should have succeeded")
 	}
@@ -264,7 +264,7 @@ func TestAPIv1RecentDefaultUserAPIKey(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error creating api: %v", err)
 	}
-	id, err := dl.CreateAPIKey(context.Background(), models.ReadOnlyPermission, "foo-name", "foo-description", "bobsmith")
+	id, err := dl.CreateAPIKey(context.Background(), models.ReadOnlyPermission,"foo-description", "bobsmith")
 	if err != nil {
 		t.Fatalf("api key creation should have succeeded")
 	}
@@ -318,7 +318,7 @@ func TestAPIv1RecentDefaultUserAPIKeyEmpty(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error creating api: %v", err)
 	}
-	id, err := dl.CreateAPIKey(context.Background(), models.ReadOnlyPermission, "foo-name", "foo-description", "foo-user")
+	id, err := dl.CreateAPIKey(context.Background(), models.ReadOnlyPermission,"foo-description", "foo-user")
 	if err != nil {
 		t.Fatalf("api key creation should have succeeded")
 	}

@@ -102,7 +102,7 @@ type UISessionsDataLayer interface {
 }
 
 type APIKeyDataLayer interface {
-	CreateAPIKey(ctx context.Context, permissionLevel models.PermissionLevel, name, description, githubUser string) (uuid.UUID, error)
+	CreateAPIKey(ctx context.Context, permissionLevel models.PermissionLevel, description, githubUser string) (uuid.UUID, error)
 	GetAPIKeyByToken(ctx context.Context, token uuid.UUID) (*models.APIKey, error)
 	GetAPIKeyByID(ctx context.Context, id uuid.UUID) (*models.APIKey, error)
 	GetAPIKeysByGithubUser(ctx context.Context, githubUser string) ([]*models.APIKey, error)

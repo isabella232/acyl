@@ -98,6 +98,7 @@ var viewPaths = map[string]string{
 	"denied":         path.Join("views", "denied.html"),
 	"help":           path.Join("views", "help.html"),
 	"failure_report": path.Join("views", "failurereport.html"),
+	"user_settings":  path.Join("views", "usersettings.html"),
 }
 
 func newSessionsCookieStore(oauthCfg OAuthConfig) sessions.Store {
@@ -253,6 +254,7 @@ func (api *uiapi) register(r *muxtrace.Router) error {
 	r.HandleFunc(urlPath("/env/{envname}"), middlewareChain(api.envHandler, api.authenticate)).Methods("GET")
 	r.HandleFunc(urlPath("/help"), middlewareChain(api.helpHandler, api.authenticate)).Methods("GET")
 	r.HandleFunc(urlPath("/event/status/failure_report"), middlewareChain(api.failureReportHandler, api.authenticate)).Methods("GET")
+	r.HandleFunc(urlPath("/user/settings"), middlewareChain(api.userSettingsHandler, api.authenticate)).Methods("GET")
 
 	// unauthenticated OAuth callback
 	r.HandleFunc(urlPath("/oauth/callback"), middlewareChain(api.authCallbackHandler)).Methods("GET")
@@ -818,6 +820,16 @@ func (api *uiapi) failureReportHandler(w http.ResponseWriter, r *http.Request) {
 		FailedResources:  elog.Status.Config.FailedResources,
 	}
 	api.render(w, "failure_report", &td)
+}
+
+func (api *uiapi) userSettingsHandler(w http.ResponseWriter, r *http.Request) {
+	uis, err := getSessionFromContext(r.Context())
+	if err != nil {
+		api.rlogger(r).Logf("error getting ui session: %v", err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	api.render(w, "user_settings", api.defaultBaseTemplateData(&uis))
 }
 
 func (api *uiapi) deniedHandler(w http.ResponseWriter, r *http.Request) {

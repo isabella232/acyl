@@ -2156,26 +2156,23 @@ func TestDataLayerCreateAPIKey(t *testing.T) {
 	requests := []models.APIKey{
 		{
 			PermissionLevel: models.WritePermission,
-			Name:            "foo write",
 			Description:     "foo write description",
 			GitHubUser:      "johnsmith",
 		},
 		{
 			PermissionLevel: models.AdminPermission,
-			Name:            "bar admin",
 			Description:     "bar admin description",
 			GitHubUser:      "jackhandy",
 		},
 		{
 			PermissionLevel: models.ReadOnlyPermission,
-			Name:            "foo read only",
 			Description:     "foo read only description",
 			GitHubUser:      "janejones",
 		},
 	}
 	tokens := []uuid.UUID{}
 	for _, r := range requests {
-		token, err := dl.CreateAPIKey(context.Background(), r.PermissionLevel, r.Name, r.Description, r.GitHubUser)
+		token, err := dl.CreateAPIKey(context.Background(), r.PermissionLevel, r.Description, r.GitHubUser)
 		if err != nil {
 			t.Fatalf("create api key should have succeeded: %v", err)
 		}
@@ -2206,7 +2203,6 @@ func TestGetAPIKeyByToken(t *testing.T) {
 		{
 			ID:              uuid.MustParse("9df12e4e-08d6-11eb-adc1-0242ac120002"),
 			PermissionLevel: models.AdminPermission,
-			Name:            "my-repo-abc",
 			Description:     "admin for my-repo-abc",
 			GitHubUser:      "janejones",
 			Token:           uuid.MustParse("a69a2832-8b50-11eb-8dcd-0242ac130003"),
@@ -2214,7 +2210,6 @@ func TestGetAPIKeyByToken(t *testing.T) {
 		{
 			ID:              uuid.MustParse("a5f3f316-098e-11eb-adc1-0242ac120002"),
 			PermissionLevel: models.WritePermission,
-			Name:            "my-repo-abc",
 			Description:     "write for my-repo-abc",
 			GitHubUser:      "jackhandy",
 			Token:           uuid.MustParse("b04691e0-8b50-11eb-8dcd-0242ac130003"),
@@ -2222,7 +2217,6 @@ func TestGetAPIKeyByToken(t *testing.T) {
 		{
 			ID:              uuid.MustParse("6985dc36-08d6-11eb-adc1-0242ac120002"),
 			PermissionLevel: models.ReadOnlyPermission,
-			Name:            "my-repo-def",
 			Description:     "read only for my-repo-def",
 			GitHubUser:      "johnsmith",
 			Token:           uuid.MustParse("9f2a9af0-8b50-11eb-8dcd-0242ac130003"),
@@ -2241,9 +2235,6 @@ func TestGetAPIKeyByToken(t *testing.T) {
 		}
 		if apiKey.PermissionLevel != r.PermissionLevel {
 			t.Fatalf("unexpected Permissions Level: %v (wanted: %v)", apiKey.PermissionLevel, r.PermissionLevel)
-		}
-		if apiKey.Name != r.Name {
-			t.Fatalf("unexpected name: %v (wanted: %v)", apiKey.Name, r.Name)
 		}
 		if apiKey.Description != r.Description {
 			t.Fatalf("unexpected description: %v (wanted: %v)", apiKey.Description, r.Description)
@@ -2267,7 +2258,6 @@ func TestGetAPIKeyByID(t *testing.T) {
 		{
 			ID:              uuid.MustParse("9df12e4e-08d6-11eb-adc1-0242ac120002"),
 			PermissionLevel: models.AdminPermission,
-			Name:            "my-repo-abc",
 			Description:     "admin for my-repo-abc",
 			GitHubUser:      "janejones",
 			Token:           uuid.MustParse("a69a2832-8b50-11eb-8dcd-0242ac130003"),
@@ -2275,7 +2265,6 @@ func TestGetAPIKeyByID(t *testing.T) {
 		{
 			ID:              uuid.MustParse("a5f3f316-098e-11eb-adc1-0242ac120002"),
 			PermissionLevel: models.WritePermission,
-			Name:            "my-repo-abc",
 			Description:     "write for my-repo-abc",
 			GitHubUser:      "jackhandy",
 			Token:           uuid.MustParse("b04691e0-8b50-11eb-8dcd-0242ac130003"),
@@ -2283,7 +2272,6 @@ func TestGetAPIKeyByID(t *testing.T) {
 		{
 			ID:              uuid.MustParse("6985dc36-08d6-11eb-adc1-0242ac120002"),
 			PermissionLevel: models.ReadOnlyPermission,
-			Name:            "my-repo-def",
 			Description:     "read only for my-repo-def",
 			GitHubUser:      "johnsmith",
 			Token:           uuid.MustParse("9f2a9af0-8b50-11eb-8dcd-0242ac130003"),
@@ -2302,9 +2290,6 @@ func TestGetAPIKeyByID(t *testing.T) {
 		}
 		if apiKey.PermissionLevel != r.PermissionLevel {
 			t.Fatalf("unexpected Permissions Level: %v (wanted: %v)", apiKey.PermissionLevel, r.PermissionLevel)
-		}
-		if apiKey.Name != r.Name {
-			t.Fatalf("unexpected name: %v (wanted: %v)", apiKey.Name, r.Name)
 		}
 		if apiKey.Description != r.Description {
 			t.Fatalf("unexpected description: %v (wanted: %v)", apiKey.Description, r.Description)
@@ -2344,11 +2329,10 @@ func TestUpdateAPIKeyLastUsed(t *testing.T) {
 	defer tdl.TearDown()
 	req := models.APIKey{
 		PermissionLevel: models.ReadOnlyPermission,
-		Name:            "foo read only",
 		Description:     "foo read only description",
 		GitHubUser:      "jimbob",
 	}
-	token, err := dl.CreateAPIKey(context.Background(), req.PermissionLevel, req.Name, req.Description, req.GitHubUser)
+	token, err := dl.CreateAPIKey(context.Background(), req.PermissionLevel, req.Description, req.GitHubUser)
 	if err != nil {
 		t.Fatalf("create api key should have succeeded: %v", err)
 	}
@@ -2384,25 +2368,22 @@ func TestDeleteAPIKeyByID(t *testing.T) {
 	requests := []models.APIKey{
 		{
 			PermissionLevel: models.WritePermission,
-			Name:            "foo write",
 			Description:     "foo write description",
 			GitHubUser:      "johnsmith",
 		},
 		{
 			PermissionLevel: models.AdminPermission,
-			Name:            "bar admin",
 			Description:     "bar admin description",
 			GitHubUser:      "jackhandy",
 		},
 		{
 			PermissionLevel: models.ReadOnlyPermission,
-			Name:            "foo read only",
 			Description:     "foo read only description",
 			GitHubUser:      "janejones",
 		},
 	}
 	for _, r := range requests {
-		token, err := dl.CreateAPIKey(context.Background(), r.PermissionLevel, r.Name, r.Description, r.GitHubUser)
+		token, err := dl.CreateAPIKey(context.Background(), r.PermissionLevel, r.Description, r.GitHubUser)
 		if err != nil {
 			t.Fatalf("create api key should have succeeded: %v", err)
 		}
