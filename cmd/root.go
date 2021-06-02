@@ -58,37 +58,32 @@ func getSecretClient() (*pvc.SecretsClient, error) {
 	ops := []pvc.SecretsClientOption{}
 	switch secretsbackend {
 	case "vault":
-		secretsConfig.Backend = pvc.WithVaultBackend()
+		var vat pvc.VaultAuthentication
 		switch {
 		case vaultConfig.TokenAuth:
 			log.Printf("secrets: using vault token auth")
+			vat = pvc.TokenVaultAuth
 			ops = []pvc.SecretsClientOption{
-				pvc.WithVaultAuthentication(pvc.Token),
 				pvc.WithVaultToken(vaultConfig.Token),
 			}
 		case vaultConfig.K8sAuth:
 			log.Printf("secrets: using vault k8s auth")
+			vat = pvc.K8sVaultAuth
 			jwt, err := ioutil.ReadFile(vaultConfig.K8sJWTPath)
 			if err != nil {
 				clierr("error reading k8s jwt path: %v", err)
 			}
 			log.Printf("secrets: role: %v; auth path: %v", vaultConfig.K8sRole, vaultConfig.K8sAuthPath)
 			ops = []pvc.SecretsClientOption{
-				pvc.WithVaultAuthentication(pvc.K8s),
 				pvc.WithVaultK8sAuth(string(jwt), vaultConfig.K8sRole),
 				pvc.WithVaultK8sAuthPath(vaultConfig.K8sAuthPath),
 			}
 		case vaultConfig.AppID != "" && vaultConfig.UserIDPath != "":
-			log.Printf("secrets: using vault AppID auth")
-			ops = []pvc.SecretsClientOption{
-				pvc.WithVaultAuthentication(pvc.AppID),
-				pvc.WithVaultAppID(vaultConfig.AppID),
-				pvc.WithVaultUserIDPath(vaultConfig.UserIDPath),
-			}
+			clierr("app id auth no longer supported")
 		default:
 			clierr("no Vault authentication methods were supplied")
 		}
-		ops = append(ops, pvc.WithVaultHost(vaultConfig.Addr))
+		secretsConfig.Backend = pvc.WithVaultBackend(vat, vaultConfig.Addr)
 	case "env":
 		secretsConfig.Backend = pvc.WithEnvVarBackend()
 	default:
