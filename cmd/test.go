@@ -37,7 +37,6 @@ import (
 	"github.com/mitchellh/go-homedir"
 
 	dockerconfig "github.com/docker/cli/cli/config"
-	dockerconfigfile "github.com/docker/cli/cli/config/configfile"
 	dockertypes "github.com/docker/docker/api/types"
 	dockerclient "github.com/docker/docker/client"
 	"github.com/dollarshaveclub/acyl/pkg/config"
@@ -114,7 +113,7 @@ type testEnvConfig struct {
 	statedir, workingdir, wordnetpath                    string
 	privileged, enableUI                                 bool
 	pullRequest                                          uint
-	dockerCfg                                            *dockerconfigfile.ConfigFile
+	dockerCfg                                            map[string]dockertypes.AuthConfig
 	k8sCfg                                               config.K8sConfig
 	uiPort                                               int
 	uiAssets                                             string
@@ -212,7 +211,9 @@ func checkTestEnvConfig() error {
 		return errors.Wrap(err, "error getting docker config credentials")
 	}
 	dcfg.AuthConfigs = auths
-	testEnvCfg.dockerCfg = dcfg
+	for k, v := range auths {
+		testEnvCfg.dockerCfg[k] = dockertypes.AuthConfig(v)
+	}
 	if testEnvCfg.imagepullsecretPath != "" {
 		_, err := os.Stat(testEnvCfg.imagepullsecretPath)
 		if err != nil {
@@ -248,7 +249,7 @@ func dockerAuthsToImagePullSecret() (config.K8sSecret, error) {
 	auths := struct {
 		Auths map[string]dockertypes.AuthConfig `json:"auths"`
 	}{
-		Auths: testEnvCfg.dockerCfg.AuthConfigs,
+		Auths: testEnvCfg.dockerCfg,
 	}
 	b, err := json.Marshal(auths)
 	if err != nil {
@@ -377,7 +378,7 @@ func testConfigSetup(dl persistence.DataLayer) (*nitroenv.Manager, context.Conte
 		return nil, nil, nil, errors.Wrap(err, "error creating preemptive locker factory")
 	}
 	mg, ri, _, ctx := generateLocalMetaGetter(dl, getStatusCallback())
-	ibb, err := getImageBackend(dl, mg.RC, testEnvCfg.dockerCfg.AuthConfigs)
+	ibb, err := getImageBackend(dl, mg.RC, testEnvCfg.dockerCfg)
 	if err != nil {
 		return nil, nil, nil, errors.Wrap(err, "error getting image builder")
 	}

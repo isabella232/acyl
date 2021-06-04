@@ -7,9 +7,6 @@ jobs:
     working_directory: /go/src/github.com/dollarshaveclub/acyl
     steps:
       - checkout
-      # - run: curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-      # - run: dep status
-      # - run: go get -v
       - run: go build
   test:
     docker:
