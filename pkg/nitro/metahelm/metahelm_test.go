@@ -30,10 +30,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	mtypes "k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/client-go/rest"
-	"k8s.io/helm/pkg/helm"
 	rls "k8s.io/helm/pkg/proto/hapi/release"
 )
 
@@ -333,24 +330,25 @@ func TestMetahelmGenerateCharts(t *testing.T) {
 	}
 }
 
-func TestMetahelmGetTillerPods(t *testing.T) {
-	pod := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "tiller",
-			Namespace: "foo",
-			Labels:    map[string]string{"app": "helm"},
-		},
-	}
-	fkc := fake.NewSimpleClientset(pod)
-	ci := ChartInstaller{kc: fkc}
-	pl, err := ci.getTillerPods("foo")
-	if err != nil {
-		t.Fatalf("should have succeeded: %v", err)
-	}
-	if len(pl.Items) != 1 {
-		t.Fatalf("bad pods length: %v", len(pl.Items))
-	}
-}
+// Tiller removed in helm v3
+//func TestMetahelmGetTillerPods(t *testing.T) {
+//	pod := &v1.Pod{
+//		ObjectMeta: metav1.ObjectMeta{
+//			Name:      "tiller",
+//			Namespace: "foo",
+//			Labels:    map[string]string{"app": "helm"},
+//		},
+//	}
+//	fkc := fake.NewSimpleClientset(pod)
+//	ci := ChartInstaller{kc: fkc}
+//	pl, err := ci.getTillerPods("foo")
+//	if err != nil {
+//		t.Fatalf("should have succeeded: %v", err)
+//	}
+//	if len(pl.Items) != 1 {
+//		t.Fatalf("bad pods length: %v", len(pl.Items))
+//	}
+//}
 
 func TestMetahelmCheckTillerPods(t *testing.T) {
 	pod := &v1.Pod{
@@ -473,9 +471,9 @@ func TestMetahelmInstallTiller(t *testing.T) {
 	ci := ChartInstaller{
 		kc: fkc,
 		dl: dl,
-		hcf: func(tillerNS, tillerAddr string, rcfg *rest.Config, kc kubernetes.Interface) (helm.Interface, error) {
-			return &helm.FakeClient{}, nil
-		},
+		//hcf: func(tillerNS, tillerAddr string, rcfg *rest.Config, kc kubernetes.Interface) (helm.Interface, error) {
+		//	return &helm.FakeClient{}, nil
+		//},
 		tcfg: tcfg,
 	}
 	podip, err := ci.installTiller(context.Background(), "foo-bar", "foo")
@@ -591,9 +589,9 @@ func TestMetahelmInstallCharts(t *testing.T) {
 		kc: fkc,
 		dl: dl,
 		ib: ib,
-		hcf: func(tillerNS, tillerAddr string, rcfg *rest.Config, kc kubernetes.Interface) (helm.Interface, error) {
-			return &helm.FakeClient{}, nil
-		},
+		//hcf: func(tillerNS, tillerAddr string, rcfg *rest.Config, kc kubernetes.Interface) (helm.Interface, error) {
+		//	return &helm.FakeClient{}, nil
+		//},
 		mc: &metrics.FakeCollector{},
 	}
 	metahelm.ChartWaitPollInterval = 10 * time.Millisecond
@@ -658,9 +656,9 @@ func TestMetahelmInstallAndUpgradeChartsBuildError(t *testing.T) {
 		kc: fkc,
 		dl: dl,
 		ib: ib,
-		hcf: func(tillerNS, tillerAddr string, rcfg *rest.Config, kc kubernetes.Interface) (helm.Interface, error) {
-			return &helm.FakeClient{}, nil
-		},
+		//hcf: func(tillerNS, tillerAddr string, rcfg *rest.Config, kc kubernetes.Interface) (helm.Interface, error) {
+		//	return &helm.FakeClient{}, nil
+		//},
 		mc: &metrics.FakeCollector{},
 	}
 	metahelm.ChartWaitPollInterval = 10 * time.Millisecond
@@ -681,9 +679,9 @@ func TestMetahelmInstallAndUpgradeChartsBuildError(t *testing.T) {
 		kc: fkc,
 		dl: dl,
 		ib: ib,
-		hcf: func(tillerNS, tillerAddr string, rcfg *rest.Config, kc kubernetes.Interface) (helm.Interface, error) {
-			return &helm.FakeClient{}, nil
-		},
+		//hcf: func(tillerNS, tillerAddr string, rcfg *rest.Config, kc kubernetes.Interface) (helm.Interface, error) {
+		//	return &helm.FakeClient{}, nil
+		//},
 		mc: &metrics.FakeCollector{},
 	}
 	metahelm.ChartWaitPollInterval = 10 * time.Millisecond
@@ -962,9 +960,9 @@ func TestMetahelmBuildAndInstallCharts(t *testing.T) {
 		kc: fkc,
 		dl: dl,
 		ib: ib,
-		hcf: func(tillerNS, tillerAddr string, rcfg *rest.Config, kc kubernetes.Interface) (helm.Interface, error) {
-			return &helm.FakeClient{}, nil
-		},
+		//hcf: func(tillerNS, tillerAddr string, rcfg *rest.Config, kc kubernetes.Interface) (helm.Interface, error) {
+		//	return &helm.FakeClient{}, nil
+		//},
 		tcfg: tcfg,
 		mc:   &metrics.FakeCollector{},
 	}
@@ -1093,9 +1091,9 @@ func TestMetahelmBuildAndUpgradeCharts(t *testing.T) {
 		kc: fkc,
 		dl: dl,
 		ib: ib,
-		hcf: func(tillerNS, tillerAddr string, rcfg *rest.Config, kc kubernetes.Interface) (helm.Interface, error) {
-			return &helm.FakeClient{Rels: rels}, nil
-		},
+		//hcf: func(tillerNS, tillerAddr string, rcfg *rest.Config, kc kubernetes.Interface) (helm.Interface, error) {
+		//	return &helm.FakeClient{Rels: rels}, nil
+		//},
 		tcfg: tcfg,
 		mc:   &metrics.FakeCollector{},
 	}
@@ -1237,22 +1235,22 @@ func TestMetahelmCleanup(t *testing.T) {
 		dl: dl,
 	}
 	ci.Cleanup(context.Background(), maxAge)
-	if _, err := fkc.CoreV1().Namespaces().Get("foo", metav1.GetOptions{}); err == nil {
+	if _, err := fkc.CoreV1().Namespaces().Get(context.Background(),"foo", metav1.GetOptions{}); err == nil {
 		t.Fatalf("should have failed to find namespace foo")
 	}
-	if _, err := fkc.CoreV1().Namespaces().Get("bar", metav1.GetOptions{}); err == nil {
+	if _, err := fkc.CoreV1().Namespaces().Get(context.Background(),"bar", metav1.GetOptions{}); err == nil {
 		t.Fatalf("should have failed to find namespace bar")
 	}
-	if _, err := fkc.CoreV1().Namespaces().Get("uninvolved", metav1.GetOptions{}); err != nil {
+	if _, err := fkc.CoreV1().Namespaces().Get(context.Background(),"uninvolved", metav1.GetOptions{}); err != nil {
 		t.Fatalf("should have found namespace uninvolved: %v", err)
 	}
-	if _, err := fkc.RbacV1().ClusterRoleBindings().Get("foo", metav1.GetOptions{}); err == nil {
+	if _, err := fkc.RbacV1().ClusterRoleBindings().Get(context.Background(),"foo", metav1.GetOptions{}); err == nil {
 		t.Fatalf("should have failed to find CRB foo")
 	}
-	if _, err := fkc.RbacV1().ClusterRoleBindings().Get("bar", metav1.GetOptions{}); err == nil {
+	if _, err := fkc.RbacV1().ClusterRoleBindings().Get(context.Background(),"bar", metav1.GetOptions{}); err == nil {
 		t.Fatalf("should have failed to find CRB bar")
 	}
-	if _, err := fkc.RbacV1().ClusterRoleBindings().Get("uninvolved", metav1.GetOptions{}); err != nil {
+	if _, err := fkc.RbacV1().ClusterRoleBindings().Get(context.Background(),"uninvolved", metav1.GetOptions{}); err != nil {
 		t.Fatalf("should have found CRB uninvolved: %v", err)
 	}
 }
