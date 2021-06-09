@@ -73,9 +73,10 @@ require (
 	gopkg.in/src-d/go-billy.v4 v4.3.0
 	gopkg.in/src-d/go-git.v4 v4.8.1
 	gopkg.in/yaml.v2 v2.4.0
-	helm.sh/helm/v3 v3.6.0 // indirect
+	helm.sh/helm/v3 v3.6.0
 	k8s.io/api v0.21.1
 	k8s.io/apimachinery v0.21.1
+	k8s.io/cli-runtime v0.21.1
 	k8s.io/client-go v0.21.1
 	k8s.io/helm v2.17.0+incompatible
 )
@@ -108,10 +109,10 @@ replace (
 )
 
 replace (
-	gonum.org/v1/gonum => gonum.org/v1/gonum v0.9.1
-	github.com/google/go-github => github.com/google/go-github/v30 v30.1.1-0.20200328133946-34cb1d623f03
-	github.com/hashicorp/vault/api => github.com/hashicorp/vault/api v1.0.5-0.20200818184811-84f6d9a065c2
-	gopkg.in/jfontan/go-billy-desfacer.v0 v0.0.0-20190109211405-e5f0f2cddac1 => github.com/bkeroackdsc/go-billy-desfacer v0.0.0-20190109211405-e5f0f2cddac1
 	github.com/docker/distribution => github.com/distribution/distribution v2.7.1+incompatible
 	github.com/docker/docker => github.com/docker/docker v20.10.5+incompatible
+	github.com/google/go-github => github.com/google/go-github/v30 v30.1.1-0.20200328133946-34cb1d623f03
+	github.com/hashicorp/vault/api => github.com/hashicorp/vault/api v1.0.5-0.20200818184811-84f6d9a065c2
+	gonum.org/v1/gonum => gonum.org/v1/gonum v0.9.1
+	gopkg.in/jfontan/go-billy-desfacer.v0 v0.0.0-20190109211405-e5f0f2cddac1 => github.com/bkeroackdsc/go-billy-desfacer v0.0.0-20190109211405-e5f0f2cddac1
 )

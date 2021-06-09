@@ -1378,9 +1378,6 @@ func TestDataLayerGetK8sEnv(t *testing.T) {
 	if env.EnvName != "foo-bar" {
 		t.Fatalf("bad env name: %v", env.EnvName)
 	}
-	if env.TillerAddr != "10.10.10.10:1234" {
-		t.Fatalf("bad tiller addr: %v", env.TillerAddr)
-	}
 	if env.Created.Equal(time.Time{}) {
 		t.Fatalf("zero value for created: %v", env.Created)
 	}
@@ -1409,9 +1406,6 @@ func TestDataLayerGetK8sEnvByNamespace(t *testing.T) {
 	env := envs[0]
 	if env.EnvName != "foo-bar" {
 		t.Fatalf("bad env name: %v", env.EnvName)
-	}
-	if env.TillerAddr != "10.10.10.10:1234" {
-		t.Fatalf("bad tiller addr: %v", env.TillerAddr)
 	}
 	if env.Created.Equal(time.Time{}) {
 		t.Fatalf("zero value for created: %v", env.Created)
@@ -1450,24 +1444,6 @@ func TestDataLayerDeleteK8sEnv(t *testing.T) {
 	}
 	if err := dl.DeleteK8sEnv(context.Background(), "does-not-exist"); err != nil {
 		t.Fatalf("delete of non-extant env should have succeeded: %v", err)
-	}
-}
-
-func TestDataLayerUpdateK8sEnvTillerAddr(t *testing.T) {
-	dl, tdl := NewTestDataLayer(t)
-	if err := tdl.Setup(testDataPath); err != nil {
-		t.Fatalf("error setting up test database: %v", err)
-	}
-	defer tdl.TearDown()
-	if err := dl.UpdateK8sEnvTillerAddr(context.Background(), "foo-bar", "192.168.1.1:1234"); err != nil {
-		t.Fatalf("should have succeeded: %v", err)
-	}
-	env, err := dl.GetK8sEnv(context.Background(), "foo-bar")
-	if err != nil {
-		t.Fatalf("get env should have succeeded: %v", err)
-	}
-	if env.TillerAddr != "192.168.1.1:1234" {
-		t.Fatalf("bad tiller addr: %v", env.TillerAddr)
 	}
 }
 

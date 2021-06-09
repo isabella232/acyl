@@ -50,9 +50,6 @@ func (fi *FakeInstaller) BuildAndInstallCharts(ctx context.Context, newenv *EnvI
 		if err := ci.writeK8sEnvironment(ctx, newenv, "nitro-1234-"+newenv.Env.Name); err != nil {
 			return err
 		}
-		if err := fi.DL.UpdateK8sEnvTillerAddr(ctx, newenv.Env.Name, "10.10.10.10:1234"); err != nil {
-			return err
-		}
 		releases := getReleases(chartsLocation)
 		return ci.writeReleaseNames(ctx, releases, "fake-namespace", newenv)
 	}

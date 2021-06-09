@@ -626,7 +626,6 @@ func TestAPIv2UserEnvActionsRebuild(t *testing.T) {
 		EnvName:         "foo-bar",
 		Namespace:       "nitro-1234-foo-bar",
 		ConfigSignature: []byte("0f0o0o0b0a0r00000000000000000000"),
-		TillerAddr:      "192.168.1.1:1234",
 	}
 	dl.CreateK8sEnv(context.Background(), k8senv)
 
@@ -688,7 +687,6 @@ func TestAPIv2UserEnvNamePods(t *testing.T) {
 		EnvName:         "foo-bar",
 		Namespace:       "nitro-1234-foo-bar",
 		ConfigSignature: []byte("0f0o0o0b0a0r00000000000000000000"),
-		TillerAddr:      "192.168.1.1:1234",
 	}
 	dl.CreateK8sEnv(context.Background(), k8senv)
 	oauthcfg := OAuthConfig{
@@ -760,7 +758,6 @@ func TestAPIv2UserEnvNamePodContainers(t *testing.T) {
 		EnvName:         "foo-bar",
 		Namespace:       "nitro-1234-foo-bar",
 		ConfigSignature: []byte("0f0o0o0b0a0r00000000000000000000"),
-		TillerAddr:      "192.168.1.1:1234",
 	}
 	dl.CreateK8sEnv(context.Background(), k8senv)
 	oauthcfg := OAuthConfig{
@@ -843,7 +840,6 @@ func TestAPIv2UserEnvNamePodLogs(t *testing.T) {
 		EnvName:         "foo-bar",
 		Namespace:       "nitro-1234-foo-bar",
 		ConfigSignature: []byte("0f0o0o0b0a0r00000000000000000000"),
-		TillerAddr:      "192.168.1.1:1234",
 	}
 	dl.CreateK8sEnv(context.Background(), k8senv)
 	oauthcfg := OAuthConfig{

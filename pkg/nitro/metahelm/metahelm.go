@@ -9,7 +9,6 @@ import (
 	"log"
 	"math/big"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -76,45 +75,11 @@ var mpfx = "metahelm."
 
 type K8sClientFactoryFunc func(kubecfgpath, kubectx string) (*kubernetes.Clientset, *rest.Config, error)
 
-// Defaults for Tiller configuration options, if not specified otherwise
+// Defaults configuration options, if not specified otherwise
 const (
-	DefaultTillerImage                   = "helmpack/tiller:v2.17.0"
-	DefaultTillerPort                    = 44134
-	DefaultTillerDeploymentName          = "tiller-deploy"
-	DefaultTillerServerConnectRetryDelay = 10 * time.Second
-	DefaultTillerServerConnectRetries    = 40
-	MaxPodContainerLogLines              = 1000
+	DefaultHelmDriver 		= "secrets"
+	MaxPodContainerLogLines = 1000
 )
-
-// TillerConfig models the configuration parameters for Helm Tiller in namespaces
-type TillerConfig struct {
-	ServerConnectRetries    uint
-	ServerConnectRetryDelay time.Duration
-	DeploymentName          string
-	Port                    uint
-	Image                   string
-}
-
-// SetDefaults returns a TillerConfig with empty value fields filled in with defaults
-func (tcfg TillerConfig) SetDefaults() TillerConfig {
-	out := tcfg
-	if out.Image == "" {
-		out.Image = DefaultTillerImage
-	}
-	if out.Port == 0 {
-		out.Port = DefaultTillerPort
-	}
-	if out.DeploymentName == "" {
-		out.DeploymentName = DefaultTillerDeploymentName
-	}
-	if out.ServerConnectRetryDelay == 0 {
-		out.ServerConnectRetryDelay = DefaultTillerServerConnectRetryDelay
-	}
-	if out.ServerConnectRetries == 0 {
-		out.ServerConnectRetries = DefaultTillerServerConnectRetries
-	}
-	return out
-}
 
 // ChartInstaller is an object that manages namespaces and install/upgrades/deletes metahelm chart graphs
 type ChartInstaller struct {
@@ -122,8 +87,6 @@ type ChartInstaller struct {
 	kc               kubernetes.Interface
 	rcfg             *rest.Config
 	kcf              K8sClientFactoryFunc
-	hcfg             *action.Configuration
-	tcfg             TillerConfig
 	dl               persistence.DataLayer
 	fs               billy.Filesystem
 	mc               metrics.Collector
@@ -135,7 +98,7 @@ type ChartInstaller struct {
 var _ Installer = &ChartInstaller{}
 
 // NewChartInstaller returns a ChartInstaller configured with an in-cluster K8s clientset
-func NewChartInstaller(ib images.Builder, dl persistence.DataLayer, fs billy.Filesystem, mc metrics.Collector, k8sGroupBindings map[string]string, k8sRepoWhitelist []string, k8sSecretInjs map[string]config.K8sSecret, tcfg TillerConfig, k8sJWTPath string, enableK8sTracing bool) (*ChartInstaller, error) {
+func NewChartInstaller(ib images.Builder, dl persistence.DataLayer, fs billy.Filesystem, mc metrics.Collector, k8sGroupBindings map[string]string, k8sRepoWhitelist []string, k8sSecretInjs map[string]config.K8sSecret, k8sJWTPath string, enableK8sTracing bool) (*ChartInstaller, error) {
 	kc, rcfg, err := NewInClusterK8sClientset(k8sJWTPath, enableK8sTracing)
 	if err != nil {
 		return nil, fmt.Errorf("error getting k8s client: %w", err)
@@ -144,7 +107,6 @@ func NewChartInstaller(ib images.Builder, dl persistence.DataLayer, fs billy.Fil
 		ib:               ib,
 		kc:               kc,
 		rcfg:             rcfg,
-		tcfg:             tcfg.SetDefaults(),
 		dl:               dl,
 		fs:               fs,
 		mc:               mc,
@@ -155,10 +117,9 @@ func NewChartInstaller(ib images.Builder, dl persistence.DataLayer, fs billy.Fil
 }
 
 // NewChartInstallerWithoutK8sClient returns a ChartInstaller without a k8s client, for use in testing/CLI.
-func NewChartInstallerWithoutK8sClient(ib images.Builder, dl persistence.DataLayer, fs billy.Filesystem, mc metrics.Collector, k8sGroupBindings map[string]string, k8sRepoWhitelist []string, k8sSecretInjs map[string]config.K8sSecret, tcfg TillerConfig) (*ChartInstaller, error) {
+func NewChartInstallerWithoutK8sClient(ib images.Builder, dl persistence.DataLayer, fs billy.Filesystem, mc metrics.Collector, k8sGroupBindings map[string]string, k8sRepoWhitelist []string, k8sSecretInjs map[string]config.K8sSecret) (*ChartInstaller, error) {
 	return &ChartInstaller{
 		ib:               ib,
-		tcfg:             tcfg.SetDefaults(),
 		dl:               dl,
 		fs:               fs,
 		mc:               mc,
@@ -169,7 +130,7 @@ func NewChartInstallerWithoutK8sClient(ib images.Builder, dl persistence.DataLay
 }
 
 // NewChartInstallerWithClientsetFromContext returns a ChartInstaller configured with a K8s clientset from the current kubeconfig context
-func NewChartInstallerWithClientsetFromContext(ib images.Builder, dl persistence.DataLayer, fs billy.Filesystem, mc metrics.Collector, k8sGroupBindings map[string]string, k8sRepoWhitelist []string, k8sSecretInjs map[string]config.K8sSecret, tcfg TillerConfig, kubeconfigpath, kubectx string) (*ChartInstaller, error) {
+func NewChartInstallerWithClientsetFromContext(ib images.Builder, dl persistence.DataLayer, fs billy.Filesystem, mc metrics.Collector, k8sGroupBindings map[string]string, k8sRepoWhitelist []string, k8sSecretInjs map[string]config.K8sSecret, kubeconfigpath, kubectx string) (*ChartInstaller, error) {
 	kc, rcfg, err := NewKubecfgContextK8sClientset(kubeconfigpath, kubectx)
 	if err != nil {
 		return nil, fmt.Errorf("error getting k8s client: %w", err)
@@ -178,7 +139,6 @@ func NewChartInstallerWithClientsetFromContext(ib images.Builder, dl persistence
 		ib:               ib,
 		kc:               kc,
 		rcfg:             rcfg,
-		tcfg:             tcfg.SetDefaults(),
 		dl:               dl,
 		fs:               fs,
 		mc:               mc,
@@ -305,12 +265,11 @@ func newRestClientGetter(context string) (*restClientGetter, error) {
 }
 
 // NewInClusterHelmConfiguration is a HelmClientConfigurationFunc that returns a Helm v3 client configured for use within the k8s cluster
-func NewInClusterHelmConfiguration(context string, namespace string) (*action.Configuration, error) {
+func NewInClusterHelmConfiguration(context, namespace, helmDriver string) (*action.Configuration, error) {
 	getter, err := newRestClientGetter(context)
 	if err != nil {
 		return nil, fmt.Errorf("error getting kube client: %w", err)
 	}
-	helmDriver := os.Getenv("HELM_DRIVER")
 	cfg := &action.Configuration{}
 	if err := cfg.Init(getter, namespace, helmDriver, func(format string, v ...interface{}) {
 		log.Printf(format, v)
@@ -407,7 +366,7 @@ func (ci ChartInstaller) installOrUpgradeIntoExisting(ctx context.Context, env *
 		err = fmt.Errorf("no extant k8s environment for env: %v", env.Env.Name)
 		return err
 	}
-	err = ci.installOrUpgradeCharts(ctx, k8senv.TillerAddr, k8senv.Namespace, csl, env, b, upgrade)
+	err = ci.installOrUpgradeCharts(ctx, k8senv.Namespace, csl, env, b, upgrade)
 	return err
 }
 
@@ -459,17 +418,15 @@ func (ci ChartInstaller) BuildAndInstallCharts(ctx context.Context, newenv *EnvI
 	if err = ci.setupNamespace(ctx, newenv.Env.Name, newenv.Env.Repo, ns); err != nil {
 		return fmt.Errorf("error setting up namespace: %w", err)
 	}
-	taddr, err := ci.installTiller(ctx, newenv.Env.Name, ns)
-	if err != nil {
-		return fmt.Errorf("error installing tiller: %w", err)
-	}
+	// todo: retrieve helm driver and context string
 
 	endNamespaceSetup()
 
-	return ci.installOrUpgradeCharts(ctx, taddr, ns, csl, newenv, b, false)
+	// todo: pass helm driver, context string
+	return ci.installOrUpgradeCharts(ctx, ns, csl, newenv, b, false)
 }
 
-func (ci ChartInstaller) installOrUpgradeCharts(ctx context.Context, taddr, namespace string, csl []metahelm.Chart, env *EnvInfo, b images.Batch, upgrade bool) error {
+func (ci ChartInstaller) installOrUpgradeCharts(ctx context.Context, namespace string, csl []metahelm.Chart, env *EnvInfo, b images.Batch, upgrade bool) error {
 	eventlogger.GetLogger(ctx).SetK8sNamespace(namespace)
 	actStr, actingStr := "install", "install"
 	if upgrade {
@@ -500,12 +457,7 @@ func (ci ChartInstaller) installOrUpgradeCharts(ctx context.Context, taddr, name
 		ci.dl.AddEvent(ctx, env.Env.Name, "image build still pending; waiting to "+actStr+" chart for "+c.Title)
 		return metahelm.Wait
 	}
-	// update tiller addr
-	taddr, err := ci.updateTillerAddr(ctx, namespace, env.Env.Name)
-	if err != nil {
-		return fmt.Errorf("error updating tiller addr: %w", err)
-	}
-	hcfg, err := NewInClusterHelmConfiguration("", namespace)
+	hcfg, err := NewInClusterHelmConfiguration("", namespace, "")
 	if err != nil {
 		return fmt.Errorf("error getting helm client configuration: %w", err)
 	}
@@ -517,9 +469,9 @@ func (ci ChartInstaller) installOrUpgradeCharts(ctx context.Context, taddr, name
 		}),
 	}
 	if upgrade {
-		err = ci.upgrade(ctx, mhm, imageReady, taddr, namespace, csl, env)
+		err = ci.upgrade(ctx, mhm, imageReady, namespace, csl, env)
 	} else {
-		err = ci.install(ctx, mhm, imageReady, taddr, namespace, csl, env)
+		err = ci.install(ctx, mhm, imageReady, namespace, csl, env)
 	}
 	if err != nil && builderr != nil {
 		return builderr
@@ -537,7 +489,7 @@ func completedCB(ctx context.Context, c metahelm.Chart, err error) {
 	eventlogger.GetLogger(ctx).SetChartCompleted(c.Title, status)
 }
 
-func (ci ChartInstaller) install(ctx context.Context, mhm *metahelm.Manager, cb func(c metahelm.Chart) metahelm.InstallCallbackAction, taddr, namespace string, csl []metahelm.Chart, env *EnvInfo) error {
+func (ci ChartInstaller) install(ctx context.Context, mhm *metahelm.Manager, cb func(c metahelm.Chart) metahelm.InstallCallbackAction, namespace string, csl []metahelm.Chart, env *EnvInfo) error {
 	defer ci.mc.Timing(mpfx+"install", "triggering_repo:"+env.Env.Repo)()
 	ctx, cf := context.WithTimeout(ctx, 30*time.Minute)
 	defer cf()
@@ -552,13 +504,10 @@ func (ci ChartInstaller) install(ctx context.Context, mhm *metahelm.Manager, cb 
 	if err := ci.writeReleaseNames(ctx, relmap, namespace, env); err != nil {
 		return fmt.Errorf("error writing release names: %w", err)
 	}
-	if err := ci.dl.UpdateK8sEnvTillerAddr(ctx, env.Env.Name, taddr); err != nil {
-		return fmt.Errorf("error updating k8s environment with tiller address: %w", err)
-	}
 	return nil
 }
 
-func (ci ChartInstaller) upgrade(ctx context.Context, mhm *metahelm.Manager, cb func(c metahelm.Chart) metahelm.InstallCallbackAction, taddr, namespace string, csl []metahelm.Chart, env *EnvInfo) error {
+func (ci ChartInstaller) upgrade(ctx context.Context, mhm *metahelm.Manager, cb func(c metahelm.Chart) metahelm.InstallCallbackAction, namespace string, csl []metahelm.Chart, env *EnvInfo) error {
 	defer ci.mc.Timing(mpfx+"upgrade", "triggering_repo:"+env.Env.Repo)()
 	ctx, cf := context.WithTimeout(ctx, 30*time.Minute)
 	defer cf()
@@ -931,20 +880,6 @@ func (ci ChartInstaller) setupNamespace(ctx context.Context, envname, repo, ns s
 var (
 	serviceAccount = "nitro"
 )
-
-// installTiller installs Tiller in the specified namespace, waits for it to become available and returns the PodIP addr for the Tiller pod
-func (ci ChartInstaller) installTiller(ctx context.Context, envname, ns string) (string, error) {
-	return "", nil
-}
-
-// updateTillerAddr fetches and updates tiller addr for kenv in the database and returns the current tiller pod IP, or error
-func (ci ChartInstaller) updateTillerAddr(ctx context.Context, ns, envname string) (string, error) {
-	return "", nil
-}
-
-func (ci ChartInstaller) checkTillerPods(ns string) (bool, error) {
-	return true, nil
-}
 
 // cleanUpNamespace deletes an environment's namespace and ClusterRoleBinding, if they exist
 func (ci ChartInstaller) cleanUpNamespace(ctx context.Context, ns, envname string, privileged bool) error {

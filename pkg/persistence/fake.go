@@ -833,21 +833,6 @@ func (fdl *FakeDataLayer) DeleteK8sEnv(ctx context.Context, name string) error {
 	return nil
 }
 
-func (fdl *FakeDataLayer) UpdateK8sEnvTillerAddr(ctx context.Context, envname, taddr string) error {
-	if isCancelled(ctx) {
-		return ctx.Err()
-	}
-	fdl.doDelay()
-	fdl.data.Lock()
-	defer fdl.data.Unlock()
-	env, ok := fdl.data.k8s[envname]
-	if ok {
-		env.TillerAddr = taddr
-		fdl.data.k8s[envname] = env
-	}
-	return nil
-}
-
 func (fdl *FakeDataLayer) UpdateK8sEnvConfigSignature(ctx context.Context, name string, confSig [32]byte) error {
 	if isCancelled(ctx) {
 		return ctx.Err()

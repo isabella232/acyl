@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -330,82 +329,6 @@ func TestMetahelmGenerateCharts(t *testing.T) {
 	}
 }
 
-// Tiller removed in helm v3
-//func TestMetahelmGetTillerPods(t *testing.T) {
-//	pod := &v1.Pod{
-//		ObjectMeta: metav1.ObjectMeta{
-//			Name:      "tiller",
-//			Namespace: "foo",
-//			Labels:    map[string]string{"app": "helm"},
-//		},
-//	}
-//	fkc := fake.NewSimpleClientset(pod)
-//	ci := ChartInstaller{kc: fkc}
-//	pl, err := ci.getTillerPods("foo")
-//	if err != nil {
-//		t.Fatalf("should have succeeded: %v", err)
-//	}
-//	if len(pl.Items) != 1 {
-//		t.Fatalf("bad pods length: %v", len(pl.Items))
-//	}
-//}
-
-func TestMetahelmCheckTillerPods(t *testing.T) {
-	pod := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "tiller",
-			Namespace: "foo",
-			Labels:    map[string]string{"app": "helm"},
-		},
-		Status: v1.PodStatus{
-			ContainerStatuses: []v1.ContainerStatus{
-				v1.ContainerStatus{
-					State: v1.ContainerState{
-						Running: &v1.ContainerStateRunning{},
-					},
-				},
-			},
-		},
-	}
-	fkc := fake.NewSimpleClientset(pod)
-	ci := ChartInstaller{kc: fkc}
-	ok, err := ci.checkTillerPods("foo")
-	if err != nil {
-		t.Fatalf("should have succeeded: %v", err)
-	}
-	if !ok {
-		t.Fatalf("should have returned true")
-	}
-	pod.Status.ContainerStatuses[0].State = v1.ContainerState{
-		Waiting: &v1.ContainerStateWaiting{
-			Reason: "something",
-		},
-	}
-	fkc = fake.NewSimpleClientset(pod)
-	ci = ChartInstaller{kc: fkc}
-	ok, err = ci.checkTillerPods("foo")
-	if err == nil {
-		t.Fatalf("waiting should have returned error")
-	}
-	if !ok {
-		t.Fatalf("waiting should have returned true")
-	}
-	pod.Status.ContainerStatuses[0].State = v1.ContainerState{
-		Waiting: &v1.ContainerStateWaiting{
-			Reason: "ImagePullBackOff",
-		},
-	}
-	fkc = fake.NewSimpleClientset(pod)
-	ci = ChartInstaller{kc: fkc}
-	ok, err = ci.checkTillerPods("foo")
-	if err == nil {
-		t.Fatalf("imagepullbackoff should have returned error")
-	}
-	if ok {
-		t.Fatalf("imagepullbackoff should have returned false")
-	}
-}
-
 func TestMetahelmCreateNamespace(t *testing.T) {
 	fkc := fake.NewSimpleClientset()
 	dl := persistence.NewFakeDataLayer()
@@ -435,68 +358,6 @@ func TestMetahelmCreateNamespace(t *testing.T) {
 				t.Fatalf(err.Error())
 			}
 		})
-	}
-}
-
-func TestMetahelmInstallTiller(t *testing.T) {
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	var server net.Conn
-	go func() {
-		defer ln.Close()
-		time.Sleep(10 * time.Millisecond)
-		server, err = ln.Accept()
-	}()
-	server = server
-	asl := strings.Split(ln.Addr().String(), ":")
-	ip := asl[0]
-	port, _ := strconv.Atoi(asl[1])
-	tcfg := TillerConfig{
-		Port:                    uint(port),
-		ServerConnectRetryDelay: 1 * time.Millisecond,
-	}
-	tcfg = tcfg.SetDefaults()
-	pod := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "tiller",
-			Namespace: "foo",
-			Labels:    map[string]string{"app": "helm"},
-		},
-		Status: v1.PodStatus{
-			PodIP: ip,
-		},
-	}
-	fkc := fake.NewSimpleClientset(pod)
-	dl := persistence.NewFakeDataLayer()
-	dl.CreateQAEnvironment(context.Background(), &models.QAEnvironment{Name: "foo-bar"})
-	ci := ChartInstaller{
-		kc: fkc,
-		dl: dl,
-		//hcf: func(tillerNS, tillerAddr string, rcfg *rest.Config, kc kubernetes.Interface) (helm.Interface, error) {
-		//	return &helm.FakeClient{}, nil
-		//},
-		tcfg: tcfg,
-	}
-	podip, err := ci.installTiller(context.Background(), "foo-bar", "foo")
-	if err != nil {
-		t.Fatalf("should have succeeded: %v", err)
-	}
-	if podip != ln.Addr().String() {
-		t.Fatalf("bad pod ip (expected %v): %v", ip, podip)
-	}
-	pod.Status.ContainerStatuses = make([]v1.ContainerStatus, 1)
-	pod.Status.ContainerStatuses[0].State = v1.ContainerState{
-		Waiting: &v1.ContainerStateWaiting{
-			Reason: "ImagePullBackOff",
-		},
-	}
-	fkc = fake.NewSimpleClientset()
-	ci = ChartInstaller{kc: fkc, dl: dl}
-	_, err = ci.installTiller(context.Background(), "foo-bar", "foo")
-	if err == nil {
-		t.Fatalf("should have failed")
-	}
-	if !strings.Contains(err.Error(), "timed out waiting for Tiller") {
-		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
@@ -598,7 +459,7 @@ func TestMetahelmInstallCharts(t *testing.T) {
 	el := &eventlogger.Logger{DL: dl}
 	el.Init([]byte{}, "foo/bar", 99)
 	ctx := eventlogger.NewEventLoggerContext(context.Background(), el)
-	if err := ci.installOrUpgradeCharts(ctx, "127.0.0.1:4404", "foo", charts, nenv, b, false); err != nil {
+	if err := ci.installOrUpgradeCharts(ctx, "foo", charts, nenv, b, false); err != nil {
 		t.Fatalf("should have succeeded: %v", err)
 	}
 }
@@ -662,7 +523,7 @@ func TestMetahelmInstallAndUpgradeChartsBuildError(t *testing.T) {
 		mc: &metrics.FakeCollector{},
 	}
 	metahelm.ChartWaitPollInterval = 10 * time.Millisecond
-	err = ci.installOrUpgradeCharts(context.Background(), "127.0.0.1:4404", "foo", charts, nenv, b, false)
+	err = ci.installOrUpgradeCharts(context.Background(), "foo", charts, nenv, b, false)
 	if err == nil {
 		t.Fatalf("install should have failed")
 	}
@@ -685,7 +546,7 @@ func TestMetahelmInstallAndUpgradeChartsBuildError(t *testing.T) {
 		mc: &metrics.FakeCollector{},
 	}
 	metahelm.ChartWaitPollInterval = 10 * time.Millisecond
-	err = ci.installOrUpgradeCharts(context.Background(), "127.0.0.1:4404", "foo", charts, nenv, b2, true)
+	err = ci.installOrUpgradeCharts(context.Background(),  "foo", charts, nenv, b2, true)
 	if err == nil {
 		t.Fatalf("upgrade should have failed")
 	}
@@ -898,12 +759,6 @@ func TestMetahelmBuildAndInstallCharts(t *testing.T) {
 	server = server
 	asl := strings.Split(ln.Addr().String(), ":")
 	ip := asl[0]
-	port, _ := strconv.Atoi(asl[1])
-	tcfg := TillerConfig{
-		Port:                    uint(port),
-		ServerConnectRetryDelay: 1 * time.Millisecond,
-	}
-	tcfg = tcfg.SetDefaults()
 	pod := &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "tiller",
@@ -963,7 +818,6 @@ func TestMetahelmBuildAndInstallCharts(t *testing.T) {
 		//hcf: func(tillerNS, tillerAddr string, rcfg *rest.Config, kc kubernetes.Interface) (helm.Interface, error) {
 		//	return &helm.FakeClient{}, nil
 		//},
-		tcfg: tcfg,
 		mc:   &metrics.FakeCollector{},
 	}
 	metahelm.ChartWaitPollInterval = 10 * time.Millisecond
@@ -985,12 +839,6 @@ func TestMetahelmBuildAndUpgradeCharts(t *testing.T) {
 	server = server
 	asl := strings.Split(ln.Addr().String(), ":")
 	ip := asl[0]
-	port, _ := strconv.Atoi(asl[1])
-	tcfg := TillerConfig{
-		Port:                    uint(port),
-		ServerConnectRetryDelay: 1 * time.Millisecond,
-	}
-	tcfg = tcfg.SetDefaults()
 	pod := &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "tiller",
@@ -1003,7 +851,7 @@ func TestMetahelmBuildAndUpgradeCharts(t *testing.T) {
 	}
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      DefaultTillerDeploymentName,
+			Name:      "name",
 			Namespace: "foo",
 		},
 		Status: appsv1.DeploymentStatus{
@@ -1061,7 +909,6 @@ func TestMetahelmBuildAndUpgradeCharts(t *testing.T) {
 	dl.CreateK8sEnv(context.Background(), &models.KubernetesEnvironment{
 		EnvName:    nenv.Env.Name,
 		Namespace:  "foo",
-		TillerAddr: ln.Addr().String(),
 	})
 	rlses := []models.HelmRelease{
 		models.HelmRelease{
@@ -1094,7 +941,6 @@ func TestMetahelmBuildAndUpgradeCharts(t *testing.T) {
 		//hcf: func(tillerNS, tillerAddr string, rcfg *rest.Config, kc kubernetes.Interface) (helm.Interface, error) {
 		//	return &helm.FakeClient{Rels: rels}, nil
 		//},
-		tcfg: tcfg,
 		mc:   &metrics.FakeCollector{},
 	}
 	metahelm.ChartWaitPollInterval = 10 * time.Millisecond
