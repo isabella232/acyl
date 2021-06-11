@@ -78,6 +78,7 @@ type K8sClientFactoryFunc func(kubecfgpath, kubectx string) (*kubernetes.Clients
 // Defaults configuration options, if not specified otherwise
 const (
 	DefaultHelmDriver 		= "secrets"
+	DefaultKubeContext 		= "kubernetes"
 	MaxPodContainerLogLines = 1000
 )
 
@@ -93,12 +94,13 @@ type ChartInstaller struct {
 	k8sgroupbindings map[string]string
 	k8srepowhitelist []string
 	k8ssecretinjs    map[string]config.K8sSecret
+	hcfg             config.HelmConfig
 }
 
 var _ Installer = &ChartInstaller{}
 
 // NewChartInstaller returns a ChartInstaller configured with an in-cluster K8s clientset
-func NewChartInstaller(ib images.Builder, dl persistence.DataLayer, fs billy.Filesystem, mc metrics.Collector, k8sGroupBindings map[string]string, k8sRepoWhitelist []string, k8sSecretInjs map[string]config.K8sSecret, k8sJWTPath string, enableK8sTracing bool) (*ChartInstaller, error) {
+func NewChartInstaller(ib images.Builder, dl persistence.DataLayer, fs billy.Filesystem, mc metrics.Collector, k8sGroupBindings map[string]string, k8sRepoWhitelist []string, k8sSecretInjs map[string]config.K8sSecret, k8sJWTPath string, enableK8sTracing bool, hcfg config.HelmConfig) (*ChartInstaller, error) {
 	kc, rcfg, err := NewInClusterK8sClientset(k8sJWTPath, enableK8sTracing)
 	if err != nil {
 		return nil, fmt.Errorf("error getting k8s client: %w", err)
@@ -113,11 +115,12 @@ func NewChartInstaller(ib images.Builder, dl persistence.DataLayer, fs billy.Fil
 		k8sgroupbindings: k8sGroupBindings,
 		k8srepowhitelist: k8sRepoWhitelist,
 		k8ssecretinjs:    k8sSecretInjs,
+		hcfg:             hcfg,
 	}, nil
 }
 
 // NewChartInstallerWithoutK8sClient returns a ChartInstaller without a k8s client, for use in testing/CLI.
-func NewChartInstallerWithoutK8sClient(ib images.Builder, dl persistence.DataLayer, fs billy.Filesystem, mc metrics.Collector, k8sGroupBindings map[string]string, k8sRepoWhitelist []string, k8sSecretInjs map[string]config.K8sSecret) (*ChartInstaller, error) {
+func NewChartInstallerWithoutK8sClient(ib images.Builder, dl persistence.DataLayer, fs billy.Filesystem, mc metrics.Collector, k8sGroupBindings map[string]string, k8sRepoWhitelist []string, k8sSecretInjs map[string]config.K8sSecret, hcfg config.HelmConfig) (*ChartInstaller, error) {
 	return &ChartInstaller{
 		ib:               ib,
 		dl:               dl,
@@ -126,12 +129,16 @@ func NewChartInstallerWithoutK8sClient(ib images.Builder, dl persistence.DataLay
 		k8sgroupbindings: k8sGroupBindings,
 		k8srepowhitelist: k8sRepoWhitelist,
 		k8ssecretinjs:    k8sSecretInjs,
+		hcfg:             hcfg,
 	}, nil
 }
 
 // NewChartInstallerWithClientsetFromContext returns a ChartInstaller configured with a K8s clientset from the current kubeconfig context
-func NewChartInstallerWithClientsetFromContext(ib images.Builder, dl persistence.DataLayer, fs billy.Filesystem, mc metrics.Collector, k8sGroupBindings map[string]string, k8sRepoWhitelist []string, k8sSecretInjs map[string]config.K8sSecret, kubeconfigpath, kubectx string) (*ChartInstaller, error) {
-	kc, rcfg, err := NewKubecfgContextK8sClientset(kubeconfigpath, kubectx)
+func NewChartInstallerWithClientsetFromContext(ib images.Builder, dl persistence.DataLayer, fs billy.Filesystem, mc metrics.Collector, k8sGroupBindings map[string]string, k8sRepoWhitelist []string, k8sSecretInjs map[string]config.K8sSecret, kubeconfigpath, kubectx string, hcfg config.HelmConfig) (*ChartInstaller, error) {
+	if kubectx != "" {
+		hcfg.KubeContext = kubectx
+	}
+	kc, rcfg, err := NewKubecfgContextK8sClientset(kubeconfigpath, hcfg.KubeContext)
 	if err != nil {
 		return nil, fmt.Errorf("error getting k8s client: %w", err)
 	}
@@ -145,6 +152,7 @@ func NewChartInstallerWithClientsetFromContext(ib images.Builder, dl persistence
 		k8sgroupbindings: k8sGroupBindings,
 		k8srepowhitelist: k8sRepoWhitelist,
 		k8ssecretinjs:    k8sSecretInjs,
+		hcfg:             hcfg,
 	}, nil
 }
 
@@ -418,11 +426,9 @@ func (ci ChartInstaller) BuildAndInstallCharts(ctx context.Context, newenv *EnvI
 	if err = ci.setupNamespace(ctx, newenv.Env.Name, newenv.Env.Repo, ns); err != nil {
 		return fmt.Errorf("error setting up namespace: %w", err)
 	}
-	// todo: retrieve helm driver and context string
 
 	endNamespaceSetup()
 
-	// todo: pass helm driver, context string
 	return ci.installOrUpgradeCharts(ctx, ns, csl, newenv, b, false)
 }
 
@@ -457,7 +463,7 @@ func (ci ChartInstaller) installOrUpgradeCharts(ctx context.Context, namespace s
 		ci.dl.AddEvent(ctx, env.Env.Name, "image build still pending; waiting to "+actStr+" chart for "+c.Title)
 		return metahelm.Wait
 	}
-	hcfg, err := NewInClusterHelmConfiguration("", namespace, "")
+	hcfg, err := NewInClusterHelmConfiguration(ci.hcfg.KubeContext, namespace, ci.hcfg.HelmDriver)
 	if err != nil {
 		return fmt.Errorf("error getting helm client configuration: %w", err)
 	}

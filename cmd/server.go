@@ -47,12 +47,13 @@ var slackConfig config.SlackConfig
 var k8sConfig config.K8sConfig
 var k8sGroupBindingsStr, k8sSecretsStr, k8sPrivilegedReposStr string
 
+var helmConfig config.HelmConfig
+
 var pgConfig config.PGConfig
 var logger *log.Logger
 var dogstatsdAddr, dogstatsdTags string
 var datadogServiceName, datadogTracingAgentAddr string
 var reaperLockKey int64
-var helmDriver string
 
 // serverCmd represents the server command
 var serverCmd = &cobra.Command{
@@ -96,7 +97,8 @@ func init() {
 	serverCmd.PersistentFlags().StringVar(&datadogServiceName, "datadog-service-name", "acyl", "Default service name to be used for Datadog APM")
 	serverCmd.PersistentFlags().DurationVar(&serverConfig.OperationTimeoutOverride, "operation-timeout-override", 0, "Override for operation timeout (ex: 10m)")
 	serverCmd.PersistentFlags().Int64Var(&reaperLockKey, "reaper-lock-key", 0, "Lock key that the reaper process should attempt to obtain")
-	serverCmd.PersistentFlags().StringVar(&helmDriver, "helm-driver", metahelm.DefaultHelmDriver, "sets the helm driver used by helm")
+	serverCmd.PersistentFlags().StringVar(&helmConfig.HelmDriver, "helm-driver", metahelm.DefaultHelmDriver, "sets the helm driver used by helm")
+	serverCmd.PersistentFlags().StringVar(&helmConfig.KubeContext, "kube-context", metahelm.DefaultKubeContext, "sets the helm driver used by helm")
 
 	addUIFlags(serverCmd)
 	RootCmd.AddCommand(serverCmd)
