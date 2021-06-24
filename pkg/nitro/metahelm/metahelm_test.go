@@ -394,21 +394,12 @@ func gentestobjs(charts []metahelm.Chart) []runtime.Object {
 	return append(objs, &rsl)
 }
 
-func tillerpod() *v1.Pod {
-	tpod := &v1.Pod{}
-	tpod.Namespace = "foo"
-	tpod.Labels = map[string]string{"app": "helm"}
-	tpod.Status.PodIP = "10.0.0.1"
-	return tpod
-}
-
 func TestMetahelmInstallCharts(t *testing.T) {
 	charts := []metahelm.Chart{
-		metahelm.Chart{Title: "foo", Location: "foo/bar", DeploymentHealthIndication: metahelm.AtLeastOnePodHealthy, WaitUntilDeployment: "foo", DependencyList: []string{"bar"}},
-		metahelm.Chart{Title: "bar", Location: "bar/baz", DeploymentHealthIndication: metahelm.AtLeastOnePodHealthy, WaitUntilDeployment: "bar"},
+		metahelm.Chart{Title: "foo", Location: "testdata/chart", DeploymentHealthIndication: metahelm.AtLeastOnePodHealthy, WaitUntilDeployment: "foo", DependencyList: []string{"bar"}},
+		metahelm.Chart{Title: "bar", Location: "testdata/chart", DeploymentHealthIndication: metahelm.AtLeastOnePodHealthy, WaitUntilDeployment: "bar"},
 	}
 	tobjs := gentestobjs(charts)
-	tobjs = append(tobjs, tillerpod())
 	fkc := fake.NewSimpleClientset(tobjs...)
 	ib := &images.FakeImageBuilder{BatchCompletedFunc: func(envname, repo string) (bool, error) { return true, nil }}
 	rc := &models.RepoConfig{
@@ -450,9 +441,6 @@ func TestMetahelmInstallCharts(t *testing.T) {
 		kc: fkc,
 		dl: dl,
 		ib: ib,
-		//hcf: func(tillerNS, tillerAddr string, rcfg *rest.Config, kc kubernetes.Interface) (helm.Interface, error) {
-		//	return &helm.FakeClient{}, nil
-		//},
 		mc: &metrics.FakeCollector{},
 	}
 	metahelm.ChartWaitPollInterval = 10 * time.Millisecond
@@ -470,7 +458,6 @@ func TestMetahelmInstallAndUpgradeChartsBuildError(t *testing.T) {
 		metahelm.Chart{Title: "bar", Location: "bar/baz", DeploymentHealthIndication: metahelm.AtLeastOnePodHealthy, WaitUntilDeployment: "bar"},
 	}
 	tobjs := gentestobjs(charts)
-	tobjs = append(tobjs, tillerpod())
 	fkc := fake.NewSimpleClientset(tobjs...)
 	berr := errors.New("build error")
 	ib := &images.FakeImageBuilder{
@@ -517,9 +504,6 @@ func TestMetahelmInstallAndUpgradeChartsBuildError(t *testing.T) {
 		kc: fkc,
 		dl: dl,
 		ib: ib,
-		//hcf: func(tillerNS, tillerAddr string, rcfg *rest.Config, kc kubernetes.Interface) (helm.Interface, error) {
-		//	return &helm.FakeClient{}, nil
-		//},
 		mc: &metrics.FakeCollector{},
 	}
 	metahelm.ChartWaitPollInterval = 10 * time.Millisecond
@@ -540,9 +524,6 @@ func TestMetahelmInstallAndUpgradeChartsBuildError(t *testing.T) {
 		kc: fkc,
 		dl: dl,
 		ib: ib,
-		//hcf: func(tillerNS, tillerAddr string, rcfg *rest.Config, kc kubernetes.Interface) (helm.Interface, error) {
-		//	return &helm.FakeClient{}, nil
-		//},
 		mc: &metrics.FakeCollector{},
 	}
 	metahelm.ChartWaitPollInterval = 10 * time.Millisecond
@@ -757,18 +738,6 @@ func TestMetahelmBuildAndInstallCharts(t *testing.T) {
 		server, _ = ln.Accept()
 	}()
 	server = server
-	asl := strings.Split(ln.Addr().String(), ":")
-	ip := asl[0]
-	pod := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "tiller",
-			Namespace: "foo",
-			Labels:    map[string]string{"app": "helm"},
-		},
-		Status: v1.PodStatus{
-			PodIP: ip,
-		},
-	}
 	cl := ChartLocations{
 		"foo": ChartLocation{ChartPath: "foo/bar"},
 		"bar": ChartLocation{ChartPath: "bar/baz"},
@@ -778,7 +747,6 @@ func TestMetahelmBuildAndInstallCharts(t *testing.T) {
 		metahelm.Chart{Title: "bar", Location: "bar/baz", DeploymentHealthIndication: metahelm.AtLeastOnePodHealthy, WaitUntilDeployment: "bar"},
 	}
 	tobjs := gentestobjs(charts)
-	tobjs = append(tobjs, pod)
 	fkc := fake.NewSimpleClientset(tobjs...)
 	ib := &images.FakeImageBuilder{BatchCompletedFunc: func(envname, repo string) (bool, error) { return true, nil }}
 	rc := &models.RepoConfig{
@@ -815,9 +783,6 @@ func TestMetahelmBuildAndInstallCharts(t *testing.T) {
 		kc: fkc,
 		dl: dl,
 		ib: ib,
-		//hcf: func(tillerNS, tillerAddr string, rcfg *rest.Config, kc kubernetes.Interface) (helm.Interface, error) {
-		//	return &helm.FakeClient{}, nil
-		//},
 		mc:   &metrics.FakeCollector{},
 	}
 	metahelm.ChartWaitPollInterval = 10 * time.Millisecond
@@ -938,9 +903,6 @@ func TestMetahelmBuildAndUpgradeCharts(t *testing.T) {
 		kc: fkc,
 		dl: dl,
 		ib: ib,
-		//hcf: func(tillerNS, tillerAddr string, rcfg *rest.Config, kc kubernetes.Interface) (helm.Interface, error) {
-		//	return &helm.FakeClient{Rels: rels}, nil
-		//},
 		mc:   &metrics.FakeCollector{},
 	}
 	metahelm.ChartWaitPollInterval = 10 * time.Millisecond

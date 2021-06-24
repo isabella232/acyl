@@ -247,16 +247,16 @@ type restClientGetter struct {
 
 var _ genericclioptions.RESTClientGetter = &restClientGetter{}
 
-func newRestClientGetter(context string) (*restClientGetter, error) {
+func newRestClientGetter(kctx string) (*restClientGetter, error) {
 	rules := clientcmd.NewDefaultClientConfigLoadingRules()
 	overrides := &clientcmd.ConfigOverrides{}
-	if context != "" {
-		overrides.CurrentContext = context
+	if kctx != "" {
+		overrides.CurrentContext = kctx
 	}
 	clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, overrides)
 	restConfig, err := clientConfig.ClientConfig()
 	if err != nil {
-		return nil, fmt.Errorf("could not get Kubernetes config for context %q: %s", context, err)
+		return nil, fmt.Errorf("could not get Kubernetes config for context %q: %s", kctx, err)
 	}
 	clientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
@@ -463,13 +463,14 @@ func (ci ChartInstaller) installOrUpgradeCharts(ctx context.Context, namespace s
 		ci.dl.AddEvent(ctx, env.Env.Name, "image build still pending; waiting to "+actStr+" chart for "+c.Title)
 		return metahelm.Wait
 	}
+	// TODO: determine if hcfg should be passed into func for test purposes
 	hcfg, err := NewInClusterHelmConfiguration(ci.hcfg.KubeContext, namespace, ci.hcfg.HelmDriver)
 	if err != nil {
 		return fmt.Errorf("error getting helm client configuration: %w", err)
 	}
 	mhm := &metahelm.Manager{
-		HCfg: hcfg,
 		K8c: ci.kc,
+		HCfg: hcfg,
 		LogF: metahelm.LogFunc(func(msg string, args ...interface{}) {
 			eventlogger.GetLogger(ctx).Printf("metahelm: "+msg, args...)
 		}),
