@@ -98,7 +98,7 @@ func init() {
 	serverCmd.PersistentFlags().DurationVar(&serverConfig.OperationTimeoutOverride, "operation-timeout-override", 0, "Override for operation timeout (ex: 10m)")
 	serverCmd.PersistentFlags().Int64Var(&reaperLockKey, "reaper-lock-key", 0, "Lock key that the reaper process should attempt to obtain")
 	serverCmd.PersistentFlags().StringVar(&helmConfig.HelmDriver, "helm-driver", metahelm.DefaultHelmDriver, "sets the helm driver used by helm")
-	serverCmd.PersistentFlags().StringVar(&helmConfig.KubeContext, "kube-context", metahelm.DefaultKubeContext, "sets the helm driver used by helm")
+	serverCmd.PersistentFlags().StringVar(&helmConfig.KubeContext, "kube-context", "", "sets the helm driver used by helm")
 
 	addUIFlags(serverCmd)
 	RootCmd.AddCommand(serverCmd)

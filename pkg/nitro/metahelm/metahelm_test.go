@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net"
 	"strings"
 	"testing"
 	"time"
@@ -57,7 +56,7 @@ func TestMetahelmGenerateCharts(t *testing.T) {
 			inputRC: models.RepoConfig{
 				Application: models.RepoConfigAppMetadata{
 					ChartTagValue:  "image.tag",
-					Repo:           "foo/bar",
+					Repo:           "testdata/chart",
 					Ref:            "aaaa",
 					ValueOverrides: []string{"something=qqqq"},
 				},
@@ -88,10 +87,10 @@ func TestMetahelmGenerateCharts(t *testing.T) {
 				cm := chartMap(charts)
 				if c, ok := cm["foo-bar"]; ok {
 					if len(c.DependencyList) != 1 {
-						return fmt.Errorf("bad dependencies for foo/bar: %v", c.DependencyList)
+						return fmt.Errorf("bad dependencies for testdata/chart: %v", c.DependencyList)
 					}
 					if c.DependencyList[0] != "bar-baz" {
-						return fmt.Errorf("bad dependency for foo/bar: %v", c.DependencyList[0])
+						return fmt.Errorf("bad dependency for testdata/chart: %v", c.DependencyList[0])
 					}
 				} else {
 					return errors.New("foo-bar missing")
@@ -147,7 +146,7 @@ func TestMetahelmGenerateCharts(t *testing.T) {
 			inputRC: models.RepoConfig{
 				Application: models.RepoConfigAppMetadata{
 					ChartTagValue: "image.tag",
-					Repo:          "foo/bar",
+					Repo:          "testdata/chart",
 					Ref:           "aaaa",
 				},
 				Dependencies: models.DependencyDeclaration{
@@ -177,7 +176,7 @@ func TestMetahelmGenerateCharts(t *testing.T) {
 			inputRC: models.RepoConfig{
 				Application: models.RepoConfigAppMetadata{
 					ChartTagValue: "image.tag",
-					Repo:          "foo/bar",
+					Repo:          "testdata/chart",
 					Ref:           "aaaa",
 				},
 				Dependencies: models.DependencyDeclaration{
@@ -207,7 +206,7 @@ func TestMetahelmGenerateCharts(t *testing.T) {
 			inputRC: models.RepoConfig{
 				Application: models.RepoConfigAppMetadata{
 					ChartTagValue: "image.tag",
-					Repo:          "foo/bar",
+					Repo:          "testdata/chart",
 					Ref:           "aaaa",
 				},
 				Dependencies: models.DependencyDeclaration{
@@ -237,7 +236,7 @@ func TestMetahelmGenerateCharts(t *testing.T) {
 			inputRC: models.RepoConfig{
 				Application: models.RepoConfigAppMetadata{
 					ChartTagValue: "image.tag",
-					Repo:          "foo/bar",
+					Repo:          "testdata/chart",
 					Ref:           "aaaa",
 				},
 				Dependencies: models.DependencyDeclaration{
@@ -270,7 +269,7 @@ func TestMetahelmGenerateCharts(t *testing.T) {
 			inputRC: models.RepoConfig{
 				Application: models.RepoConfigAppMetadata{
 					ChartTagValue: "",
-					Repo:          "foo/bar",
+					Repo:          "testdata/chart",
 					Ref:           "aaaa",
 				},
 				Dependencies: models.DependencyDeclaration{
@@ -381,6 +380,8 @@ func gentestobjs(charts []metahelm.Chart) []runtime.Object {
 		r.Status.ReadyReplicas = 1
 		r.Name = "replicaset-" + c.Name()
 		r.Namespace = "foo"
+		d.Spec.Replicas = &reps
+		d.Status.ReadyReplicas = 1
 		r.Labels = d.Spec.Template.Labels
 		d.Labels = d.Spec.Template.Labels
 		d.ObjectMeta.UID = mtypes.UID(c.Name() + "-deployment")
@@ -442,10 +443,13 @@ func TestMetahelmInstallCharts(t *testing.T) {
 		dl: dl,
 		ib: ib,
 		mc: &metrics.FakeCollector{},
+		hcfg: config.HelmConfig{
+			HelmDriver: "memory",
+		},
 	}
 	metahelm.ChartWaitPollInterval = 10 * time.Millisecond
 	el := &eventlogger.Logger{DL: dl}
-	el.Init([]byte{}, "foo/bar", 99)
+	el.Init([]byte{}, rc.Application.Repo, 99)
 	ctx := eventlogger.NewEventLoggerContext(context.Background(), el)
 	if err := ci.installOrUpgradeCharts(ctx, "foo", charts, nenv, b, false); err != nil {
 		t.Fatalf("should have succeeded: %v", err)
@@ -454,8 +458,8 @@ func TestMetahelmInstallCharts(t *testing.T) {
 
 func TestMetahelmInstallAndUpgradeChartsBuildError(t *testing.T) {
 	charts := []metahelm.Chart{
-		metahelm.Chart{Title: "foo", Location: "foo/bar", DeploymentHealthIndication: metahelm.AtLeastOnePodHealthy, WaitUntilDeployment: "foo", DependencyList: []string{"bar"}},
-		metahelm.Chart{Title: "bar", Location: "bar/baz", DeploymentHealthIndication: metahelm.AtLeastOnePodHealthy, WaitUntilDeployment: "bar"},
+		metahelm.Chart{Title: "foo", Location: "testdata/chart", DeploymentHealthIndication: metahelm.AtLeastOnePodHealthy, WaitUntilDeployment: "foo", DependencyList: []string{"bar"}},
+		metahelm.Chart{Title: "bar", Location: "testdata/chart", DeploymentHealthIndication: metahelm.AtLeastOnePodHealthy, WaitUntilDeployment: "bar"},
 	}
 	tobjs := gentestobjs(charts)
 	fkc := fake.NewSimpleClientset(tobjs...)
@@ -505,6 +509,9 @@ func TestMetahelmInstallAndUpgradeChartsBuildError(t *testing.T) {
 		dl: dl,
 		ib: ib,
 		mc: &metrics.FakeCollector{},
+		hcfg: config.HelmConfig{
+			HelmDriver: "memory",
+		},
 	}
 	metahelm.ChartWaitPollInterval = 10 * time.Millisecond
 	err = ci.installOrUpgradeCharts(context.Background(), "foo", charts, nenv, b, false)
@@ -525,6 +532,9 @@ func TestMetahelmInstallAndUpgradeChartsBuildError(t *testing.T) {
 		dl: dl,
 		ib: ib,
 		mc: &metrics.FakeCollector{},
+		hcfg: config.HelmConfig{
+			HelmDriver: "memory",
+		},
 	}
 	metahelm.ChartWaitPollInterval = 10 * time.Millisecond
 	err = ci.installOrUpgradeCharts(context.Background(),  "foo", charts, nenv, b2, true)
@@ -542,7 +552,7 @@ func TestMetahelmWriteReleaseNames(t *testing.T) {
 		"foo-bar2": "random2",
 	}
 	rc := models.RepoConfig{
-		Application: models.RepoConfigAppMetadata{Repo: "foo/bar", Ref: "asdf", Branch: "random"},
+		Application: models.RepoConfigAppMetadata{Repo: "testdata/chart", Ref: "asdf", Branch: "random"},
 		Dependencies: models.DependencyDeclaration{
 			Direct: []models.RepoConfigDependency{
 				models.RepoConfigDependency{
@@ -587,7 +597,7 @@ func TestMetahelmUpdateReleaseRevisions(t *testing.T) {
 		"foo-bar2": "random2",
 	}
 	rc := models.RepoConfig{
-		Application: models.RepoConfigAppMetadata{Repo: "foo/bar", Ref: "1234", Branch: "random"},
+		Application: models.RepoConfigAppMetadata{Repo: "testdata/chart", Ref: "1234", Branch: "random"},
 		Dependencies: models.DependencyDeclaration{
 			Direct: []models.RepoConfigDependency{
 				models.RepoConfigDependency{
@@ -631,7 +641,7 @@ func TestMetahelmWriteK8sEnvironment(t *testing.T) {
 	name := "foo-bar"
 	rc := &models.RepoConfig{
 		Application: models.RepoConfigAppMetadata{
-			Repo:   "foo/bar",
+			Repo:   "testdata/chart",
 			Ref:    "aaaa",
 			Branch: "bar",
 		},
@@ -652,8 +662,8 @@ func TestMetahelmWriteK8sEnvironment(t *testing.T) {
 		t.Fatalf("json umarshal failed: %v", err)
 	}
 	rm, _ := newenv.RC.RefMap()
-	if refmap2["foo/bar"] != rm["foo/bar"] {
-		t.Fatalf("bad refmap value: %v", refmap2["foo/bar"])
+	if refmap2["testdata/chart"] != rm["testdata/chart"] {
+		t.Fatalf("bad refmap value: %v", refmap2["testdata/chart"])
 	}
 	if k8s.Namespace != "foo" {
 		t.Fatalf("bad namespace: %v", k8s.Namespace)
@@ -730,21 +740,13 @@ func TestMetahelmMergeVars(t *testing.T) {
 }
 
 func TestMetahelmBuildAndInstallCharts(t *testing.T) {
-	ln, _ := net.Listen("tcp", "127.0.0.1:0")
-	var server net.Conn
-	go func() {
-		defer ln.Close()
-		time.Sleep(10 * time.Millisecond)
-		server, _ = ln.Accept()
-	}()
-	server = server
 	cl := ChartLocations{
-		"foo": ChartLocation{ChartPath: "foo/bar"},
-		"bar": ChartLocation{ChartPath: "bar/baz"},
+		"foo": ChartLocation{ChartPath: "testdata/chart"},
+		"bar": ChartLocation{ChartPath: "testdata/chart"},
 	}
 	charts := []metahelm.Chart{
-		metahelm.Chart{Title: "foo", Location: "foo/bar", DeploymentHealthIndication: metahelm.AtLeastOnePodHealthy, WaitUntilDeployment: "foo", DependencyList: []string{"bar"}},
-		metahelm.Chart{Title: "bar", Location: "bar/baz", DeploymentHealthIndication: metahelm.AtLeastOnePodHealthy, WaitUntilDeployment: "bar"},
+		metahelm.Chart{Title: "foo", Location: "testdata/chart", DeploymentHealthIndication: metahelm.AtLeastOnePodHealthy, WaitUntilDeployment: "foo", DependencyList: []string{"bar"}},
+		metahelm.Chart{Title: "bar", Location: "testdata/chart", DeploymentHealthIndication: metahelm.AtLeastOnePodHealthy, WaitUntilDeployment: "bar"},
 	}
 	tobjs := gentestobjs(charts)
 	fkc := fake.NewSimpleClientset(tobjs...)
@@ -752,7 +754,7 @@ func TestMetahelmBuildAndInstallCharts(t *testing.T) {
 	rc := &models.RepoConfig{
 		Application: models.RepoConfigAppMetadata{
 			Repo:          "foo",
-			Ref:           "asdf",
+			Ref:           "latest",
 			Branch:        "feature-foo",
 			Image:         "foo",
 			ChartTagValue: "image.tag",
@@ -764,7 +766,7 @@ func TestMetahelmBuildAndInstallCharts(t *testing.T) {
 					Repo: "bar",
 					AppMetadata: models.RepoConfigAppMetadata{
 						Repo:          "bar",
-						Ref:           "asdf",
+						Ref:           "latest",
 						Branch:        "feature-foo",
 						Image:         "bar",
 						ChartTagValue: "image.tag",
@@ -783,7 +785,10 @@ func TestMetahelmBuildAndInstallCharts(t *testing.T) {
 		kc: fkc,
 		dl: dl,
 		ib: ib,
-		mc:   &metrics.FakeCollector{},
+		mc: &metrics.FakeCollector{},
+		hcfg: config.HelmConfig{
+			HelmDriver: "memory",
+		},
 	}
 	metahelm.ChartWaitPollInterval = 10 * time.Millisecond
 	overrideNamespace = "foo"
@@ -794,26 +799,6 @@ func TestMetahelmBuildAndInstallCharts(t *testing.T) {
 }
 
 func TestMetahelmBuildAndUpgradeCharts(t *testing.T) {
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	var server net.Conn
-	go func() {
-		defer ln.Close()
-		time.Sleep(10 * time.Millisecond)
-		server, err = ln.Accept()
-	}()
-	server = server
-	asl := strings.Split(ln.Addr().String(), ":")
-	ip := asl[0]
-	pod := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "tiller",
-			Namespace: "foo",
-			Labels:    map[string]string{"app": "helm"},
-		},
-		Status: v1.PodStatus{
-			PodIP: ip,
-		},
-	}
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "name",
@@ -825,15 +810,15 @@ func TestMetahelmBuildAndUpgradeCharts(t *testing.T) {
 		},
 	}
 	cl := ChartLocations{
-		"foo": ChartLocation{ChartPath: "foo/bar"},
-		"bar": ChartLocation{ChartPath: "bar/baz"},
+		"foo": ChartLocation{ChartPath: "testdata/chart"},
+		"bar": ChartLocation{ChartPath: "testdata/chart"},
 	}
 	charts := []metahelm.Chart{
-		metahelm.Chart{Title: "foo", Location: "foo/bar", DeploymentHealthIndication: metahelm.AtLeastOnePodHealthy, WaitUntilDeployment: "foo", DependencyList: []string{"bar"}},
-		metahelm.Chart{Title: "bar", Location: "bar/baz", DeploymentHealthIndication: metahelm.AtLeastOnePodHealthy, WaitUntilDeployment: "bar"},
+		metahelm.Chart{Title: "foo", Location: "testdata/chart", DeploymentHealthIndication: metahelm.AtLeastOnePodHealthy, WaitUntilDeployment: "foo", DependencyList: []string{"bar"}},
+		metahelm.Chart{Title: "bar", Location: "testdata/chart", DeploymentHealthIndication: metahelm.AtLeastOnePodHealthy, WaitUntilDeployment: "bar"},
 	}
 	tobjs := gentestobjs(charts)
-	tobjs = append(tobjs, pod, deployment)
+	tobjs = append(tobjs, deployment)
 	fkc := fake.NewSimpleClientset(tobjs...)
 	ib := &images.FakeImageBuilder{BatchCompletedFunc: func(envname, repo string) (bool, error) { return true, nil }}
 	stop := make(chan struct{})
@@ -904,6 +889,9 @@ func TestMetahelmBuildAndUpgradeCharts(t *testing.T) {
 		dl: dl,
 		ib: ib,
 		mc:   &metrics.FakeCollector{},
+		hcfg: config.HelmConfig{
+			HelmDriver: "memory",
+		},
 	}
 	metahelm.ChartWaitPollInterval = 10 * time.Millisecond
 	overrideNamespace = "foo"
@@ -966,10 +954,10 @@ func TestMetahelmSetupNamespace(t *testing.T) {
 	fkc := fake.NewSimpleClientset(&v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "foo"}})
 	k8scfg := config.K8sConfig{}
 	k8scfg.ProcessGroupBindings("foo=edit")
-	k8scfg.ProcessPrivilegedRepos("foo/bar")
+	k8scfg.ProcessPrivilegedRepos("testdata/chart")
 	k8scfg.ProcessSecretInjections(&fakeSecretFetcher{}, "mysecret=some/vault/path")
 	ci := ChartInstaller{kc: fkc, dl: dl, k8sgroupbindings: k8scfg.GroupBindings, k8srepowhitelist: k8scfg.PrivilegedRepoWhitelist, k8ssecretinjs: k8scfg.SecretInjections}
-	if err := ci.setupNamespace(context.Background(), "some-name", "foo/bar", "foo"); err != nil {
+	if err := ci.setupNamespace(context.Background(), "some-name", "testdata/chart", "foo"); err != nil {
 		t.Fatalf("should have succeeded: %v", err)
 	}
 }

@@ -78,7 +78,6 @@ type K8sClientFactoryFunc func(kubecfgpath, kubectx string) (*kubernetes.Clients
 // Defaults configuration options, if not specified otherwise
 const (
 	DefaultHelmDriver 		= "secrets"
-	DefaultKubeContext 		= "kubernetes"
 	MaxPodContainerLogLines = 1000
 )
 
