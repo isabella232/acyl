@@ -286,17 +286,6 @@ func NewInClusterHelmConfiguration(context, namespace, helmDriver string) (*acti
 	return cfg, nil
 }
 
-//// NewTunneledHelmClient is a HelmClientFactoryFunc that returns a Helm client configured for use with a localhost tunnel to the k8s cluster
-//func NewTunneledHelmClient(tillerNS, _ string, rcfg *rest.Config, kc kubernetes.Interface) (helm.Interface, error) {
-//	tunnel, err := portforwarder.New(tillerNS, kc, rcfg)
-//	if err != nil {
-//		return nil, fmt.Errorf("error establishing k8s tunnel: %w", err)
-//	}
-//	tillerHost := fmt.Sprintf("127.0.0.1:%d", tunnel.Local)
-//
-//	return helm.NewClient(helm.Host(tillerHost), helm.ConnectTimeout(int64(60*time.Second))), nil
-//}
-
 func (ci ChartInstaller) log(ctx context.Context, msg string, args ...interface{}) {
 	eventlogger.GetLogger(ctx).Printf(msg, args...)
 }
@@ -373,7 +362,18 @@ func (ci ChartInstaller) installOrUpgradeIntoExisting(ctx context.Context, env *
 		err = fmt.Errorf("no extant k8s environment for env: %v", env.Env.Name)
 		return err
 	}
-	err = ci.installOrUpgradeCharts(ctx, k8senv.Namespace, csl, env, b, upgrade)
+	hcfg, err := NewInClusterHelmConfiguration(ci.hcfg.KubeContext, k8senv.Namespace, ci.hcfg.HelmDriver)
+	if err != nil {
+		return fmt.Errorf("error getting helm client configuration: %w", err)
+	}
+	mhm := &metahelm.Manager{
+		K8c: ci.kc,
+		HCfg: hcfg,
+		LogF: metahelm.LogFunc(func(msg string, args ...interface{}) {
+			eventlogger.GetLogger(ctx).Printf("metahelm: "+msg, args...)
+		}),
+	}
+	err = ci.installOrUpgradeCharts(ctx, mhm, k8senv.Namespace, csl, env, b, upgrade)
 	return err
 }
 
@@ -428,10 +428,21 @@ func (ci ChartInstaller) BuildAndInstallCharts(ctx context.Context, newenv *EnvI
 
 	endNamespaceSetup()
 
-	return ci.installOrUpgradeCharts(ctx, ns, csl, newenv, b, false)
+	hcfg, err := NewInClusterHelmConfiguration(ci.hcfg.KubeContext, ns, ci.hcfg.HelmDriver)
+	if err != nil {
+		return fmt.Errorf("error getting helm client configuration: %w", err)
+	}
+	mhm := &metahelm.Manager{
+		K8c: ci.kc,
+		HCfg: hcfg,
+		LogF: metahelm.LogFunc(func(msg string, args ...interface{}) {
+			eventlogger.GetLogger(ctx).Printf("metahelm: "+msg, args...)
+		}),
+	}
+	return ci.installOrUpgradeCharts(ctx, mhm, ns, csl, newenv, b, false)
 }
 
-func (ci ChartInstaller) installOrUpgradeCharts(ctx context.Context, namespace string, csl []metahelm.Chart, env *EnvInfo, b images.Batch, upgrade bool) error {
+func (ci ChartInstaller) installOrUpgradeCharts(ctx context.Context, mhm *metahelm.Manager, namespace string, csl []metahelm.Chart, env *EnvInfo, b images.Batch, upgrade bool) error {
 	eventlogger.GetLogger(ctx).SetK8sNamespace(namespace)
 	actStr, actingStr := "install", "install"
 	if upgrade {
@@ -462,18 +473,7 @@ func (ci ChartInstaller) installOrUpgradeCharts(ctx context.Context, namespace s
 		ci.dl.AddEvent(ctx, env.Env.Name, "image build still pending; waiting to "+actStr+" chart for "+c.Title)
 		return metahelm.Wait
 	}
-	// TODO: determine if hcfg should be passed into func for test purposes
-	hcfg, err := NewInClusterHelmConfiguration(ci.hcfg.KubeContext, namespace, ci.hcfg.HelmDriver)
-	if err != nil {
-		return fmt.Errorf("error getting helm client configuration: %w", err)
-	}
-	mhm := &metahelm.Manager{
-		K8c: ci.kc,
-		HCfg: hcfg,
-		LogF: metahelm.LogFunc(func(msg string, args ...interface{}) {
-			eventlogger.GetLogger(ctx).Printf("metahelm: "+msg, args...)
-		}),
-	}
+	var err error
 	if upgrade {
 		err = ci.upgrade(ctx, mhm, imageReady, namespace, csl, env)
 	} else {
