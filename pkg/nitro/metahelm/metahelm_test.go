@@ -534,12 +534,13 @@ func TestMetahelmInstallCharts(t *testing.T) {
 		dl: dl,
 		ib: ib,
 		mc: &metrics.FakeCollector{},
+		mhm: mhm,
 	}
 	metahelm.ChartWaitPollInterval = 10 * time.Millisecond
 	el := &eventlogger.Logger{DL: dl}
 	el.Init([]byte{}, rc.Application.Repo, 99)
 	ctx := eventlogger.NewEventLoggerContext(context.Background(), el)
-	if err := ci.installOrUpgradeCharts(ctx, mhm,"foo", charts, nenv, b, false); err != nil {
+	if err := ci.installOrUpgradeCharts(ctx,"foo", charts, nenv, b, false); err != nil {
 		t.Fatalf("should have succeeded: %v", err)
 	}
 }
@@ -600,13 +601,14 @@ func TestMetahelmInstallAndUpgradeChartsBuildError(t *testing.T) {
 	dl := persistence.NewFakeDataLayer()
 	dl.CreateQAEnvironment(context.Background(), nenv.Env)
 	ci := ChartInstaller{
-		kc: fkc,
-		dl: dl,
-		ib: ib,
-		mc: &metrics.FakeCollector{},
+		kc:  fkc,
+		dl:  dl,
+		ib:  ib,
+		mc:  &metrics.FakeCollector{},
+		mhm: mhm,
 	}
 	metahelm.ChartWaitPollInterval = 10 * time.Millisecond
-	err = ci.installOrUpgradeCharts(context.Background(), mhm,"foo", charts, nenv, b, false)
+	err = ci.installOrUpgradeCharts(context.Background(),"foo", charts, nenv, b, false)
 	if err == nil {
 		t.Fatalf("install should have failed")
 	}
@@ -620,13 +622,14 @@ func TestMetahelmInstallAndUpgradeChartsBuildError(t *testing.T) {
 	defer b2.Stop()
 	nenv.Releases = map[string]string{"foo": "foo", "bar": "bar"}
 	ci = ChartInstaller{
-		kc: fkc,
-		dl: dl,
-		ib: ib,
-		mc: &metrics.FakeCollector{},
+		kc:  fkc,
+		dl:  dl,
+		ib:  ib,
+		mc:  &metrics.FakeCollector{},
+		mhm: mhm,
 	}
 	metahelm.ChartWaitPollInterval = 10 * time.Millisecond
-	err = ci.installOrUpgradeCharts(context.Background(),  mhm,"foo", charts, nenv, b2, true)
+	err = ci.installOrUpgradeCharts(context.Background(),"foo", charts, nenv, b2, true)
 	if err == nil {
 		t.Fatalf("upgrade should have failed")
 	}
@@ -839,13 +842,13 @@ func TestMetahelmBuildAndInstallCharts(t *testing.T) {
 	}
 	tobjs := gentestobjs(charts)
 	fkc := fake.NewSimpleClientset(tobjs...)
-	//mhm := &metahelm.Manager{
-	//	K8c: fkc,
-	//	HCfg: fakeHelmConfiguration(t),
-	//	LogF: metahelm.LogFunc(func(msg string, args ...interface{}) {
-	//		eventlogger.GetLogger(context.Background()).Printf("metahelm_test: "+msg, args...)
-	//	}),
-	//}
+	mhm := &metahelm.Manager{
+		K8c: fkc,
+		HCfg: fakeHelmConfiguration(t),
+		LogF: metahelm.LogFunc(func(msg string, args ...interface{}) {
+			eventlogger.GetLogger(context.Background()).Printf("metahelm_test: "+msg, args...)
+		}),
+	}
 	ib := &images.FakeImageBuilder{BatchCompletedFunc: func(envname, repo string) (bool, error) { return true, nil }}
 	rc := &models.RepoConfig{
 		Application: models.RepoConfigAppMetadata{
@@ -878,10 +881,11 @@ func TestMetahelmBuildAndInstallCharts(t *testing.T) {
 	dl := persistence.NewFakeDataLayer()
 	dl.CreateQAEnvironment(context.Background(), nenv.Env)
 	ci := ChartInstaller{
-		kc: fkc,
-		dl: dl,
-		ib: ib,
-		mc: &metrics.FakeCollector{},
+		kc:  fkc,
+		dl:  dl,
+		ib:  ib,
+		mc:  &metrics.FakeCollector{},
+		mhm: mhm,
 	}
 	metahelm.ChartWaitPollInterval = 10 * time.Millisecond
 	overrideNamespace = "foo"
@@ -913,13 +917,13 @@ func TestMetahelmBuildAndUpgradeCharts(t *testing.T) {
 	tobjs := gentestobjs(charts)
 	tobjs = append(tobjs, deployment)
 	fkc := fake.NewSimpleClientset(tobjs...)
-	//mhm := &metahelm.Manager{
-	//	K8c: fkc,
-	//	HCfg: fakeHelmConfiguration(t),
-	//	LogF: metahelm.LogFunc(func(msg string, args ...interface{}) {
-	//		eventlogger.GetLogger(context.Background()).Printf("metahelm_test: "+msg, args...)
-	//	}),
-	//}
+	mhm := &metahelm.Manager{
+		K8c: fkc,
+		HCfg: fakeHelmConfiguration(t),
+		LogF: metahelm.LogFunc(func(msg string, args ...interface{}) {
+			eventlogger.GetLogger(context.Background()).Printf("metahelm_test: "+msg, args...)
+		}),
+	}
 	ib := &images.FakeImageBuilder{BatchCompletedFunc: func(envname, repo string) (bool, error) { return true, nil }}
 	stop := make(chan struct{})
 	defer close(stop)
@@ -985,10 +989,11 @@ func TestMetahelmBuildAndUpgradeCharts(t *testing.T) {
 		rels = append(rels, &rls.Release{Name: r.Release})
 	}
 	ci := ChartInstaller{
-		kc: fkc,
-		dl: dl,
-		ib: ib,
-		mc:   &metrics.FakeCollector{},
+		kc:  fkc,
+		dl:  dl,
+		ib:  ib,
+		mc:  &metrics.FakeCollector{},
+		mhm: mhm,
 	}
 	metahelm.ChartWaitPollInterval = 10 * time.Millisecond
 	overrideNamespace = "foo"

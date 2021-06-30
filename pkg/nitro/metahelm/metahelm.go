@@ -93,6 +93,7 @@ type ChartInstaller struct {
 	k8sgroupbindings map[string]string
 	k8srepowhitelist []string
 	k8ssecretinjs    map[string]config.K8sSecret
+	mhm              *metahelm.Manager
 	hcfg             config.HelmConfig
 }
 
@@ -114,6 +115,7 @@ func NewChartInstaller(ib images.Builder, dl persistence.DataLayer, fs billy.Fil
 		k8sgroupbindings: k8sGroupBindings,
 		k8srepowhitelist: k8sRepoWhitelist,
 		k8ssecretinjs:    k8sSecretInjs,
+		mhm:              &metahelm.Manager{},
 		hcfg:             hcfg,
 	}, nil
 }
@@ -128,6 +130,7 @@ func NewChartInstallerWithoutK8sClient(ib images.Builder, dl persistence.DataLay
 		k8sgroupbindings: k8sGroupBindings,
 		k8srepowhitelist: k8sRepoWhitelist,
 		k8ssecretinjs:    k8sSecretInjs,
+		mhm:              &metahelm.Manager{},
 		hcfg:             hcfg,
 	}, nil
 }
@@ -151,6 +154,7 @@ func NewChartInstallerWithClientsetFromContext(ib images.Builder, dl persistence
 		k8sgroupbindings: k8sGroupBindings,
 		k8srepowhitelist: k8sRepoWhitelist,
 		k8ssecretinjs:    k8sSecretInjs,
+		mhm:              &metahelm.Manager{},
 		hcfg:             hcfg,
 	}, nil
 }
@@ -272,13 +276,13 @@ func newRestClientGetter(kctx string) (*restClientGetter, error) {
 }
 
 // NewInClusterHelmConfiguration is a HelmClientConfigurationFunc that returns a Helm v3 client configured for use within the k8s cluster
-func NewInClusterHelmConfiguration(context, namespace, helmDriver string) (*action.Configuration, error) {
-	getter, err := newRestClientGetter(context)
+func NewInClusterHelmConfiguration(kubectx, helmdriver, namespace string) (*action.Configuration, error) {
+	getter, err := newRestClientGetter(kubectx)
 	if err != nil {
 		return nil, fmt.Errorf("error getting kube client: %w", err)
 	}
 	cfg := &action.Configuration{}
-	if err := cfg.Init(getter, namespace, helmDriver, func(format string, v ...interface{}) {
+	if err := cfg.Init(getter, namespace, helmdriver, func(format string, v ...interface{}) {
 		log.Printf(format, v)
 	}); err != nil {
 		return nil, fmt.Errorf("error initializing Helm config: %w", err)
@@ -362,18 +366,20 @@ func (ci ChartInstaller) installOrUpgradeIntoExisting(ctx context.Context, env *
 		err = fmt.Errorf("no extant k8s environment for env: %v", env.Env.Name)
 		return err
 	}
-	hcfg, err := NewInClusterHelmConfiguration(ci.hcfg.KubeContext, k8senv.Namespace, ci.hcfg.HelmDriver)
-	if err != nil {
-		return fmt.Errorf("error getting helm client configuration: %w", err)
+	if ci.mhm == nil {
+		hcfg, err := NewInClusterHelmConfiguration(ci.hcfg.KubeContext, ci.hcfg.HelmDriver, k8senv.Namespace)
+		if err != nil {
+			return fmt.Errorf("error getting helm client configuration: %w", err)
+		}
+		ci.mhm = &metahelm.Manager{
+			K8c: ci.kc,
+			HCfg: hcfg,
+			LogF: metahelm.LogFunc(func(msg string, args ...interface{}) {
+				eventlogger.GetLogger(ctx).Printf("metahelm: "+msg, args...)
+			}),
+		}
 	}
-	mhm := &metahelm.Manager{
-		K8c: ci.kc,
-		HCfg: hcfg,
-		LogF: metahelm.LogFunc(func(msg string, args ...interface{}) {
-			eventlogger.GetLogger(ctx).Printf("metahelm: "+msg, args...)
-		}),
-	}
-	err = ci.installOrUpgradeCharts(ctx, mhm, k8senv.Namespace, csl, env, b, upgrade)
+	err = ci.installOrUpgradeCharts(ctx, k8senv.Namespace, csl, env, b, upgrade)
 	return err
 }
 
@@ -409,7 +415,6 @@ func (ci ChartInstaller) BuildAndInstallCharts(ctx context.Context, newenv *EnvI
 	if err := ci.writeK8sEnvironment(ctx, newenv, ns); err != nil {
 		return fmt.Errorf("error writing k8s environment: %w", err)
 	}
-
 	csl, err := ci.GenerateCharts(ctx, ns, newenv, cl)
 	if err != nil {
 		return fmt.Errorf("error generating metahelm charts: %w", err)
@@ -419,30 +424,28 @@ func (ci ChartInstaller) BuildAndInstallCharts(ctx context.Context, newenv *EnvI
 		return fmt.Errorf("error starting image builds: %w", err)
 	}
 	defer b.Stop()
-
 	endNamespaceSetup := ci.mc.Timing(mpfx+"namespace_setup", "triggering_repo:"+newenv.RC.Application.Repo)
-
 	if err = ci.setupNamespace(ctx, newenv.Env.Name, newenv.Env.Repo, ns); err != nil {
 		return fmt.Errorf("error setting up namespace: %w", err)
 	}
-
 	endNamespaceSetup()
-
-	hcfg, err := NewInClusterHelmConfiguration(ci.hcfg.KubeContext, ns, ci.hcfg.HelmDriver)
-	if err != nil {
-		return fmt.Errorf("error getting helm client configuration: %w", err)
+	if ci.mhm == nil {
+		hcfg, err := NewInClusterHelmConfiguration(ci.hcfg.KubeContext, ci.hcfg.HelmDriver, ns)
+		if err != nil {
+			return fmt.Errorf("error getting helm client configuration: %w", err)
+		}
+		ci.mhm = &metahelm.Manager{
+			K8c: ci.kc,
+			HCfg: hcfg,
+			LogF: metahelm.LogFunc(func(msg string, args ...interface{}) {
+				eventlogger.GetLogger(ctx).Printf("metahelm: "+msg, args...)
+			}),
+		}
 	}
-	mhm := &metahelm.Manager{
-		K8c: ci.kc,
-		HCfg: hcfg,
-		LogF: metahelm.LogFunc(func(msg string, args ...interface{}) {
-			eventlogger.GetLogger(ctx).Printf("metahelm: "+msg, args...)
-		}),
-	}
-	return ci.installOrUpgradeCharts(ctx, mhm, ns, csl, newenv, b, false)
+	return ci.installOrUpgradeCharts(ctx, ns, csl, newenv, b, false)
 }
 
-func (ci ChartInstaller) installOrUpgradeCharts(ctx context.Context, mhm *metahelm.Manager, namespace string, csl []metahelm.Chart, env *EnvInfo, b images.Batch, upgrade bool) error {
+func (ci ChartInstaller) installOrUpgradeCharts(ctx context.Context, namespace string, csl []metahelm.Chart, env *EnvInfo, b images.Batch, upgrade bool) error {
 	eventlogger.GetLogger(ctx).SetK8sNamespace(namespace)
 	actStr, actingStr := "install", "install"
 	if upgrade {
@@ -475,9 +478,9 @@ func (ci ChartInstaller) installOrUpgradeCharts(ctx context.Context, mhm *metahe
 	}
 	var err error
 	if upgrade {
-		err = ci.upgrade(ctx, mhm, imageReady, namespace, csl, env)
+		err = ci.upgrade(ctx, imageReady, namespace, csl, env)
 	} else {
-		err = ci.install(ctx, mhm, imageReady, namespace, csl, env)
+		err = ci.install(ctx, imageReady, namespace, csl, env)
 	}
 	if err != nil && builderr != nil {
 		return builderr
@@ -495,11 +498,11 @@ func completedCB(ctx context.Context, c metahelm.Chart, err error) {
 	eventlogger.GetLogger(ctx).SetChartCompleted(c.Title, status)
 }
 
-func (ci ChartInstaller) install(ctx context.Context, mhm *metahelm.Manager, cb func(c metahelm.Chart) metahelm.InstallCallbackAction, namespace string, csl []metahelm.Chart, env *EnvInfo) error {
+func (ci ChartInstaller) install(ctx context.Context, cb func(c metahelm.Chart) metahelm.InstallCallbackAction, namespace string, csl []metahelm.Chart, env *EnvInfo) error {
 	defer ci.mc.Timing(mpfx+"install", "triggering_repo:"+env.Env.Repo)()
 	ctx, cf := context.WithTimeout(ctx, 30*time.Minute)
 	defer cf()
-	relmap, err := mhm.Install(ctx, csl, metahelm.WithK8sNamespace(namespace), metahelm.WithInstallCallback(cb), metahelm.WithCompletedCallback(func(c metahelm.Chart, err error) { completedCB(ctx, c, err) }), metahelm.WithTimeout(metahelmTimeout))
+	relmap, err := ci.mhm.Install(ctx, csl, metahelm.WithK8sNamespace(namespace), metahelm.WithInstallCallback(cb), metahelm.WithCompletedCallback(func(c metahelm.Chart, err error) { completedCB(ctx, c, err) }), metahelm.WithTimeout(metahelmTimeout))
 	if err != nil {
 		if _, ok := err.(metahelm.ChartError); ok {
 			return err
@@ -513,11 +516,11 @@ func (ci ChartInstaller) install(ctx context.Context, mhm *metahelm.Manager, cb 
 	return nil
 }
 
-func (ci ChartInstaller) upgrade(ctx context.Context, mhm *metahelm.Manager, cb func(c metahelm.Chart) metahelm.InstallCallbackAction, namespace string, csl []metahelm.Chart, env *EnvInfo) error {
+func (ci ChartInstaller) upgrade(ctx context.Context, cb func(c metahelm.Chart) metahelm.InstallCallbackAction, namespace string, csl []metahelm.Chart, env *EnvInfo) error {
 	defer ci.mc.Timing(mpfx+"upgrade", "triggering_repo:"+env.Env.Repo)()
 	ctx, cf := context.WithTimeout(ctx, 30*time.Minute)
 	defer cf()
-	err := mhm.Upgrade(ctx, env.Releases, csl, metahelm.WithK8sNamespace(namespace), metahelm.WithInstallCallback(cb), metahelm.WithCompletedCallback(func(c metahelm.Chart, err error) { completedCB(ctx, c, err) }), metahelm.WithTimeout(metahelmTimeout))
+	err := ci.mhm.Upgrade(ctx, env.Releases, csl, metahelm.WithK8sNamespace(namespace), metahelm.WithInstallCallback(cb), metahelm.WithCompletedCallback(func(c metahelm.Chart, err error) { completedCB(ctx, c, err) }), metahelm.WithTimeout(metahelmTimeout))
 	if err != nil {
 		if _, ok := err.(metahelm.ChartError); ok {
 			return err
