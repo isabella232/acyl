@@ -211,9 +211,11 @@ func checkTestEnvConfig() error {
 		return errors.Wrap(err, "error getting docker config credentials")
 	}
 	dcfg.AuthConfigs = auths
+	dockerAuthCfg := make(map[string]dockertypes.AuthConfig, len(auths))
 	for k, v := range auths {
-		testEnvCfg.dockerCfg[k] = dockertypes.AuthConfig(v)
+		dockerAuthCfg[k] = dockertypes.AuthConfig(v)
 	}
+	testEnvCfg.dockerCfg = dockerAuthCfg
 	if testEnvCfg.imagepullsecretPath != "" {
 		_, err := os.Stat(testEnvCfg.imagepullsecretPath)
 		if err != nil {
