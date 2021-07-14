@@ -36,10 +36,10 @@ import (
 	metahelmlib "github.com/dollarshaveclub/metahelm/pkg/metahelm"
 	"github.com/gdamore/tcell"
 	"github.com/spf13/afero"
-	billy "gopkg.in/src-d/go-billy.v4"
+	"gopkg.in/src-d/go-billy.v4"
 	"gopkg.in/src-d/go-billy.v4/osfs"
 
-	homedir "github.com/mitchellh/go-homedir"
+	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 )
 
@@ -245,7 +245,8 @@ func configCheck(cmd *cobra.Command, args []string) {
 		perr("error fetching charts: %v", err)
 		return
 	}
-	ci, err := metahelm.NewChartInstallerWithoutK8sClient(nil, nil, osfs.New(""), &metrics.FakeCollector{}, nil, nil, nil, helmConfig)
+	ci, err := metahelm.NewChartInstallerWithClientsetFromContext(nil, persistence.NewFakeDataLayer(), osfs.New(""), &metrics.FakeCollector{}, k8sConfig.GroupBindings, k8sConfig.PrivilegedRepoWhitelist, k8sConfig.SecretInjections, "", "", helmConfig)
+	//ci, err := metahelm.NewChartInstaller(nil, persistence.NewFakeDataLayer(), nil, nil, k8sConfig.GroupBindings, k8sConfig.PrivilegedRepoWhitelist, k8sConfig.SecretInjections, k8sClientConfig.JWTPath, true, helmConfig)
 	if err != nil {
 		perr("error creating chart installer: %v", err)
 		return
@@ -773,7 +774,7 @@ func displayInfoTerminal(rc *models.RepoConfig, err error, mg meta.Getter) int {
 			errorModal("Error Processing Charts", "Check your chart configuration.", err)
 			return
 		}
-		ci, err := metahelm.NewChartInstallerWithoutK8sClient(nil, nil, osfs.New(""), &metrics.FakeCollector{}, nil, nil, nil, helmConfig)
+		ci, err := metahelm.NewChartInstallerWithClientsetFromContext(nil, persistence.NewFakeDataLayer(), osfs.New(""), &metrics.FakeCollector{}, k8sConfig.GroupBindings, k8sConfig.PrivilegedRepoWhitelist, k8sConfig.SecretInjections, "", "", helmConfig)
 		if err != nil {
 			errorModal("Error Instantiating Chart Installer", "Bug!", err)
 			return
