@@ -125,7 +125,7 @@ func (kc *K8sConfig) ProcessSecretInjections(sf SecretFetcher, injstr string) er
 	return nil
 }
 
-type HelmConfig struct {
+type HelmClientConfig struct {
 	HelmDriver  string
 	KubeContext string
 }

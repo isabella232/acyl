@@ -47,8 +47,6 @@ var slackConfig config.SlackConfig
 var k8sConfig config.K8sConfig
 var k8sGroupBindingsStr, k8sSecretsStr, k8sPrivilegedReposStr string
 
-var helmConfig config.HelmConfig
-
 var pgConfig config.PGConfig
 var logger *log.Logger
 var dogstatsdAddr, dogstatsdTags string
@@ -97,8 +95,6 @@ func init() {
 	serverCmd.PersistentFlags().StringVar(&datadogServiceName, "datadog-service-name", "acyl", "Default service name to be used for Datadog APM")
 	serverCmd.PersistentFlags().DurationVar(&serverConfig.OperationTimeoutOverride, "operation-timeout-override", 0, "Override for operation timeout (ex: 10m)")
 	serverCmd.PersistentFlags().Int64Var(&reaperLockKey, "reaper-lock-key", 0, "Lock key that the reaper process should attempt to obtain")
-	serverCmd.PersistentFlags().StringVar(&helmConfig.HelmDriver, "helm-driver", metahelm.DefaultHelmDriver, "sets the helm driver used by helm")
-	serverCmd.PersistentFlags().StringVar(&helmConfig.KubeContext, "kube-context", "", "sets the helm driver used by helm")
 
 	addUIFlags(serverCmd)
 	RootCmd.AddCommand(serverCmd)
@@ -184,7 +180,7 @@ func server(cmd *cobra.Command, args []string) {
 	if err := k8sConfig.ProcessSecretInjections(sc, k8sSecretsStr); err != nil {
 		log.Fatalf("error in k8s secret injections: %v", err)
 	}
-	ci, err := metahelm.NewChartInstaller(ib, dl, fs, nmc, k8sConfig.GroupBindings, k8sConfig.PrivilegedRepoWhitelist, k8sConfig.SecretInjections, k8sClientConfig.JWTPath, true, helmConfig)
+	ci, err := metahelm.NewChartInstaller(ib, dl, fs, nmc, k8sConfig.GroupBindings, k8sConfig.PrivilegedRepoWhitelist, k8sConfig.SecretInjections, k8sClientConfig.JWTPath, true, helmClientConfig)
 	if err != nil {
 		log.Fatalf("error getting metahelm chart installer: %v", err)
 	}

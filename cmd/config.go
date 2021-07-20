@@ -123,6 +123,7 @@ func init() {
 	configCmd.PersistentFlags().BoolVar(&triggeringRepoUsesWorkingTree, "triggering-repo-working-tree", true, "Triggering repo always uses working tree instead of commits")
 	configCmd.PersistentFlags().StringVar(&githubHostname, "github-hostname", "github.com", "GitHub hostname in git repo SSH remotes")
 	configCmd.PersistentFlags().StringVar(&baseBranch, "base-branch", "master", "Base branch to use for branch-matching logic")
+	configCmd.PersistentFlags().StringVar(&testEnvCfg.kubeCfgPath, "kubecfg", "", "Path to kubeconfig (overrides KUBECONFIG)")
 
 	configCmd.AddCommand(configTestCmd)
 	configCmd.AddCommand(configInfoCmd)
@@ -245,8 +246,7 @@ func configCheck(cmd *cobra.Command, args []string) {
 		perr("error fetching charts: %v", err)
 		return
 	}
-	ci, err := metahelm.NewChartInstallerWithClientsetFromContext(nil, persistence.NewFakeDataLayer(), osfs.New(""), &metrics.FakeCollector{}, k8sConfig.GroupBindings, k8sConfig.PrivilegedRepoWhitelist, k8sConfig.SecretInjections, "", "", helmConfig)
-	//ci, err := metahelm.NewChartInstaller(nil, persistence.NewFakeDataLayer(), nil, nil, k8sConfig.GroupBindings, k8sConfig.PrivilegedRepoWhitelist, k8sConfig.SecretInjections, k8sClientConfig.JWTPath, true, helmConfig)
+	ci, err := metahelm.NewChartInstallerWithClientsetFromContext(nil, persistence.NewFakeDataLayer(), osfs.New(""), &metrics.FakeCollector{}, k8sConfig.GroupBindings, k8sConfig.PrivilegedRepoWhitelist, k8sConfig.SecretInjections, testEnvCfg.kubeCfgPath, helmClientConfig)
 	if err != nil {
 		perr("error creating chart installer: %v", err)
 		return
@@ -774,7 +774,7 @@ func displayInfoTerminal(rc *models.RepoConfig, err error, mg meta.Getter) int {
 			errorModal("Error Processing Charts", "Check your chart configuration.", err)
 			return
 		}
-		ci, err := metahelm.NewChartInstallerWithClientsetFromContext(nil, persistence.NewFakeDataLayer(), osfs.New(""), &metrics.FakeCollector{}, k8sConfig.GroupBindings, k8sConfig.PrivilegedRepoWhitelist, k8sConfig.SecretInjections, "", "", helmConfig)
+		ci, err := metahelm.NewChartInstallerWithClientsetFromContext(nil, persistence.NewFakeDataLayer(), osfs.New(""), &metrics.FakeCollector{}, k8sConfig.GroupBindings, k8sConfig.PrivilegedRepoWhitelist, k8sConfig.SecretInjections, testEnvCfg.kubeCfgPath, helmClientConfig)
 		if err != nil {
 			errorModal("Error Instantiating Chart Installer", "Bug!", err)
 			return

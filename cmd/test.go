@@ -125,8 +125,7 @@ var testMockUser = "john.doe"
 func init() {
 	configTestCmd.PersistentFlags().UintVar(&testEnvCfg.pullRequest, "pr", 999, "Pull request number for simulated create/update events")
 	configTestCmd.PersistentFlags().StringVar(&testEnvCfg.buildMode, "image-build-mode", "none", "Image build mode (see help)")
-	configTestCmd.PersistentFlags().StringVar(&testEnvCfg.kubeCfgPath, "kubecfg", "", "Path to kubeconfig (overrides KUBECONFIG")
-	configTestCmd.PersistentFlags().StringVar(&testEnvCfg.kubeCtx, "kubectx", "", "kube context (overrides current context)")
+	configTestCmd.PersistentFlags().StringVar(&testEnvCfg.kubeCfgPath, "kubecfg", "", "Path to kubeconfig (overrides KUBECONFIG)")
 	configTestCmd.PersistentFlags().StringVar(&testEnvCfg.imagepullsecretPath, "image-pull-secret", "", "Path to manual image pull secret YAML file (optional, see help)")
 	configTestCmd.PersistentFlags().BoolVar(&testEnvCfg.privileged, "privileged", false, "give the environment service account ClusterAdmin privileges via a ClusterRoleBinding (use this if your application requires ClusterAdmin abilities)")
 	configTestCmd.PersistentFlags().StringVar(&k8sGroupBindingsStr, "k8s-group-bindings", "", "optional k8s RBAC group bindings for the environment namespace (comma-separated) in GROUP1=CLUSTER_ROLE1,GROUP2=CLUSTER_ROLE2 format (ex: users=edit)")
@@ -393,7 +392,7 @@ func testConfigSetup(dl persistence.DataLayer) (*nitroenv.Manager, context.Conte
 	if testEnvCfg.privileged {
 		testEnvCfg.k8sCfg.PrivilegedRepoWhitelist = []string{ri.GitHubRepoName}
 	}
-	ci, err := metahelm.NewChartInstallerWithClientsetFromContext(ib, dl, fs, mc, testEnvCfg.k8sCfg.GroupBindings, testEnvCfg.k8sCfg.PrivilegedRepoWhitelist, testEnvCfg.k8sCfg.SecretInjections, testEnvCfg.kubeCfgPath, testEnvCfg.kubeCtx, helmConfig)
+	ci, err := metahelm.NewChartInstallerWithClientsetFromContext(ib, dl, fs, mc, testEnvCfg.k8sCfg.GroupBindings, testEnvCfg.k8sCfg.PrivilegedRepoWhitelist, testEnvCfg.k8sCfg.SecretInjections, testEnvCfg.kubeCfgPath, helmClientConfig)
 	if err != nil {
 		return nil, nil, nil, errors.Wrap(err, "error getting chart installer")
 	}

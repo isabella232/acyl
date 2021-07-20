@@ -94,13 +94,16 @@ type ChartInstaller struct {
 	k8srepowhitelist []string
 	k8ssecretinjs    map[string]config.K8sSecret
 	mhmf             MetahelmManagerFactoryFunc
-	hcfg             config.HelmConfig
+	hcfg             config.HelmClientConfig
 }
 
 var _ Installer = &ChartInstaller{}
 
 // NewChartInstaller returns a ChartInstaller configured with an in-cluster K8s clientset
-func NewChartInstaller(ib images.Builder, dl persistence.DataLayer, fs billy.Filesystem, mc metrics.Collector, k8sGroupBindings map[string]string, k8sRepoWhitelist []string, k8sSecretInjs map[string]config.K8sSecret, k8sJWTPath string, enableK8sTracing bool, hcfg config.HelmConfig) (*ChartInstaller, error) {
+func NewChartInstaller(ib images.Builder, dl persistence.DataLayer, fs billy.Filesystem, mc metrics.Collector, k8sGroupBindings map[string]string, k8sRepoWhitelist []string, k8sSecretInjs map[string]config.K8sSecret, k8sJWTPath string, enableK8sTracing bool, hcfg config.HelmClientConfig) (*ChartInstaller, error) {
+	if  hcfg.HelmDriver == "" {
+		hcfg.HelmDriver = DefaultHelmDriver
+	}
 	kc, rcfg, err := NewInClusterK8sClientset(k8sJWTPath, enableK8sTracing)
 	if err != nil {
 		return nil, fmt.Errorf("error getting k8s client: %w", err)
@@ -121,10 +124,9 @@ func NewChartInstaller(ib images.Builder, dl persistence.DataLayer, fs billy.Fil
 }
 
 // NewChartInstallerWithClientsetFromContext returns a ChartInstaller configured with a K8s clientset from the current kubeconfig context
-func NewChartInstallerWithClientsetFromContext(ib images.Builder, dl persistence.DataLayer, fs billy.Filesystem, mc metrics.Collector, k8sGroupBindings map[string]string, k8sRepoWhitelist []string, k8sSecretInjs map[string]config.K8sSecret, kubeconfigpath, kubectx string, hcfg config.HelmConfig) (*ChartInstaller, error) {
-	// TODO: resolve kube context duplication
-	if kubectx != "" {
-		hcfg.KubeContext = kubectx
+func NewChartInstallerWithClientsetFromContext(ib images.Builder, dl persistence.DataLayer, fs billy.Filesystem, mc metrics.Collector, k8sGroupBindings map[string]string, k8sRepoWhitelist []string, k8sSecretInjs map[string]config.K8sSecret, kubeconfigpath string, hcfg config.HelmClientConfig) (*ChartInstaller, error) {
+	if  hcfg.HelmDriver == "" {
+		hcfg.HelmDriver = DefaultHelmDriver
 	}
 	kc, rcfg, err := NewKubecfgContextK8sClientset(kubeconfigpath, hcfg.KubeContext)
 	if err != nil {
