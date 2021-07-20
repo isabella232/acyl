@@ -125,7 +125,10 @@ func fakeHelmConfiguration(t *testing.T) *action.Configuration {
 }
 
 // generate mock k8s objects for the supplied charts
-func gentestobjs(charts []metahelm.Chart) []runtime.Object {
+func gentestobjs(charts []metahelm.Chart, namespace string) []runtime.Object {
+	if overrideNamespace != "" {
+		namespace = overrideNamespace
+	}
 	objs := []runtime.Object{}
 	reps := int32(1)
 	iscontroller := true
@@ -143,7 +146,7 @@ func gentestobjs(charts []metahelm.Chart) []runtime.Object {
 		r.Spec.Replicas = &reps
 		r.Status.ReadyReplicas = 1
 		r.Name = "replicaset-" + c.Name()
-		r.Namespace = "foo"
+		r.Namespace = namespace
 		d.Spec.Replicas = &reps
 		d.Status.ReadyReplicas = 1
 		r.Labels = d.Spec.Template.Labels
@@ -151,7 +154,7 @@ func gentestobjs(charts []metahelm.Chart) []runtime.Object {
 		d.ObjectMeta.UID = mtypes.UID(c.Name() + "-deployment")
 		r.ObjectMeta.OwnerReferences = []metav1.OwnerReference{metav1.OwnerReference{UID: d.ObjectMeta.UID, Controller: &iscontroller}}
 		d.Name = c.Name()
-		d.Namespace = "foo"
+		d.Namespace = namespace
 		r.Spec.Template = d.Spec.Template
 		objs = append(objs, d)
 		rsl.Items = append(rsl.Items, *r)
@@ -479,13 +482,13 @@ func TestMetahelmCreateNamespace(t *testing.T) {
 	}
 }
 
-
 func TestMetahelmInstallCharts(t *testing.T) {
 	charts := []metahelm.Chart{
 		metahelm.Chart{Title: "foo", Location: "testdata/chart", DeploymentHealthIndication: metahelm.AtLeastOnePodHealthy, WaitUntilDeployment: "foo", DependencyList: []string{"bar"}},
 		metahelm.Chart{Title: "bar", Location: "testdata/chart", DeploymentHealthIndication: metahelm.AtLeastOnePodHealthy, WaitUntilDeployment: "bar"},
 	}
-	tobjs := gentestobjs(charts)
+	ns := "nitro-foo"
+	tobjs := gentestobjs(charts, ns)
 	fkc := fake.NewSimpleClientset(tobjs...)
 	ib := &images.FakeImageBuilder{BatchCompletedFunc: func(envname, repo string) (bool, error) { return true, nil }}
 	rc := &models.RepoConfig{
@@ -542,7 +545,7 @@ func TestMetahelmInstallCharts(t *testing.T) {
 	el := &eventlogger.Logger{DL: dl}
 	el.Init([]byte{}, rc.Application.Repo, 99)
 	ctx := eventlogger.NewEventLoggerContext(context.Background(), el)
-	if err := ci.installOrUpgradeCharts(ctx,"foo", charts, nenv, b, false); err != nil {
+	if err := ci.installOrUpgradeCharts(ctx, ns, charts, nenv, b, false); err != nil {
 		t.Fatalf("should have succeeded: %v", err)
 	}
 }
@@ -552,7 +555,8 @@ func TestMetahelmInstallAndUpgradeChartsBuildError(t *testing.T) {
 		metahelm.Chart{Title: "foo", Location: "testdata/chart", DeploymentHealthIndication: metahelm.AtLeastOnePodHealthy, WaitUntilDeployment: "foo", DependencyList: []string{"bar"}},
 		metahelm.Chart{Title: "bar", Location: "testdata/chart", DeploymentHealthIndication: metahelm.AtLeastOnePodHealthy, WaitUntilDeployment: "bar"},
 	}
-	tobjs := gentestobjs(charts)
+	ns := "nitro-foo"
+	tobjs := gentestobjs(charts, ns)
 	fkc := fake.NewSimpleClientset(tobjs...)
 	berr := errors.New("build error")
 	ib := &images.FakeImageBuilder{
@@ -611,7 +615,7 @@ func TestMetahelmInstallAndUpgradeChartsBuildError(t *testing.T) {
 		},
 	}
 	metahelm.ChartWaitPollInterval = 10 * time.Millisecond
-	err = ci.installOrUpgradeCharts(context.Background(),"foo", charts, nenv, b, false)
+	err = ci.installOrUpgradeCharts(context.Background(), ns, charts, nenv, b, false)
 	if err == nil {
 		t.Fatalf("install should have failed")
 	}
@@ -640,7 +644,7 @@ func TestMetahelmInstallAndUpgradeChartsBuildError(t *testing.T) {
 		},
 	}
 	metahelm.ChartWaitPollInterval = 10 * time.Millisecond
-	err = ci.installOrUpgradeCharts(context.Background(),"foo", charts, nenv, b2, true)
+	err = ci.installOrUpgradeCharts(context.Background(), ns, charts, nenv, b2, true)
 	if err == nil {
 		t.Fatalf("upgrade should have failed")
 	}
@@ -851,7 +855,8 @@ func TestMetahelmBuildAndInstallCharts(t *testing.T) {
 		metahelm.Chart{Title: "foo", Location: "testdata/chart", DeploymentHealthIndication: metahelm.AtLeastOnePodHealthy, WaitUntilDeployment: "foo", DependencyList: []string{"bar"}},
 		metahelm.Chart{Title: "bar", Location: "testdata/chart", DeploymentHealthIndication: metahelm.AtLeastOnePodHealthy, WaitUntilDeployment: "bar"},
 	}
-	tobjs := gentestobjs(charts)
+	ns := "nitro-foo"
+	tobjs := gentestobjs(charts, ns)
 	fkc := fake.NewSimpleClientset(tobjs...)
 	ib := &images.FakeImageBuilder{BatchCompletedFunc: func(envname, repo string) (bool, error) { return true, nil }}
 	rc := &models.RepoConfig{
@@ -900,7 +905,7 @@ func TestMetahelmBuildAndInstallCharts(t *testing.T) {
 		},
 	}
 	metahelm.ChartWaitPollInterval = 10 * time.Millisecond
-	overrideNamespace = "foo"
+	overrideNamespace = "nitro-foo-bar"
 	defer func() { overrideNamespace = "" }()
 	if err := ci.BuildAndInstallCharts(context.Background(), nenv, cl); err != nil {
 		t.Fatalf("should have succeeded: %v", err)
@@ -926,7 +931,8 @@ func TestMetahelmBuildAndUpgradeCharts(t *testing.T) {
 		metahelm.Chart{Title: "foo", Location: "testdata/chart", DeploymentHealthIndication: metahelm.AtLeastOnePodHealthy, WaitUntilDeployment: "foo", DependencyList: []string{"bar"}},
 		metahelm.Chart{Title: "bar", Location: "testdata/chart", DeploymentHealthIndication: metahelm.AtLeastOnePodHealthy, WaitUntilDeployment: "bar"},
 	}
-	tobjs := gentestobjs(charts)
+	ns := "nitro-foo"
+	tobjs := gentestobjs(charts, ns)
 	tobjs = append(tobjs, deployment)
 	fkc := fake.NewSimpleClientset(tobjs...)
 	ib := &images.FakeImageBuilder{BatchCompletedFunc: func(envname, repo string) (bool, error) { return true, nil }}
@@ -975,12 +981,14 @@ func TestMetahelmBuildAndUpgradeCharts(t *testing.T) {
 			Name:        "foo",
 			Release:     nenv.Releases["foo"],
 			RevisionSHA: "1234",
+			K8sNamespace: ns,
 		},
 		models.HelmRelease{
 			EnvName:     nenv.Env.Name,
 			Name:        "bar",
 			Release:     nenv.Releases["bar"],
 			RevisionSHA: "5678",
+			K8sNamespace: ns,
 		},
 	}
 	k8senv := &models.KubernetesEnvironment{
@@ -1009,7 +1017,7 @@ func TestMetahelmBuildAndUpgradeCharts(t *testing.T) {
 		},
 	}
 	metahelm.ChartWaitPollInterval = 10 * time.Millisecond
-	overrideNamespace = "foo"
+	overrideNamespace = "nitro-foo-baz"
 	defer func() { overrideNamespace = "" }()
 	if err := ci.BuildAndUpgradeCharts(context.Background(), nenv, k8senv, cl); err != nil {
 		t.Fatalf("should have succeeded: %v", err)

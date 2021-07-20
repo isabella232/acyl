@@ -236,11 +236,14 @@ type restClientGetter struct {
 
 var _ genericclioptions.RESTClientGetter = &restClientGetter{}
 
-func newRestClientGetter(kctx string) (*restClientGetter, error) {
+func newRestClientGetter(kctx, namespace string) (*restClientGetter, error) {
 	rules := clientcmd.NewDefaultClientConfigLoadingRules()
 	overrides := &clientcmd.ConfigOverrides{}
 	if kctx != "" {
 		overrides.CurrentContext = kctx
+	}
+	if namespace != "" {
+		overrides.Context.Namespace = namespace
 	}
 	clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, overrides)
 	restConfig, err := clientConfig.ClientConfig()
@@ -263,7 +266,7 @@ func newRestClientGetter(kctx string) (*restClientGetter, error) {
 
 // NewInClusterHelmConfiguration is a HelmClientConfigurationFunc that returns a Helm v3 client configured for use within the k8s cluster
 func NewInClusterHelmConfiguration(ctx context.Context, kc kubernetes.Interface, kubectx, helmdriver, namespace string) (*metahelm.Manager, error) {
-	getter, err := newRestClientGetter(kubectx)
+	getter, err := newRestClientGetter(kubectx, namespace)
 	if err != nil {
 		return nil, fmt.Errorf("error getting kube client: %w", err)
 	}
@@ -414,6 +417,9 @@ func (ci ChartInstaller) installOrUpgradeCharts(ctx context.Context, namespace s
 	mhm, err := ci.mhmf(ctx, ci.kc, ci.hcfg.KubeContext, ci.hcfg.HelmDriver, namespace)
 	if err != nil {
 		return fmt.Errorf("error getting helm client configuration: %w", err)
+	}
+	if mhm == nil {
+		return fmt.Errorf("error getting helm client: %w", err)
 	}
 	actStr, actingStr := "install", "install"
 	if upgrade {
