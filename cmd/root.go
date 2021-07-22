@@ -46,6 +46,8 @@ func init() {
 	RootCmd.PersistentFlags().StringVar(&k8sClientConfig.JWTPath, "k8s-jwt-path", "/var/run/secrets/kubernetes.io/serviceaccount/token", "Path to the JWT used to authenticate the k8s client to the API server")
 	RootCmd.PersistentFlags().StringVar(&helmClientConfig.HelmDriver, "helm-driver", os.Getenv("HELM_DRIVER"), "Sets helm driver (default: secrets)")
 	RootCmd.PersistentFlags().StringVar(&helmClientConfig.KubeContext, "kubectx", "", "Sets kubernetes context (overrides current context)")
+	RootCmd.PersistentFlags().Float32Var(&helmClientConfig.RestConfig.QPS, "qps", 50, "Override maximum QPS to the master from this client")
+	RootCmd.PersistentFlags().IntVar(&helmClientConfig.RestConfig.Burst, "burst", 100, "Override maximum burst for throttle")
 }
 
 func clierr(msg string, params ...interface{}) {

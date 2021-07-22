@@ -29,6 +29,7 @@ require (
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/google/go-github/v30 v30.1.0 // indirect
 	github.com/google/uuid v1.1.2
+	github.com/googleapis/gnostic v0.5.1 // indirect
 	github.com/gorilla/mux v1.7.4
 	github.com/gorilla/securecookie v1.1.1
 	github.com/gorilla/sessions v1.2.0
@@ -83,6 +84,7 @@ require (
 
 replace (
 	k8s.io/api => k8s.io/api v0.21.1
+	k8s.io/kubernetes => k8s.io/kubernetes v1.21.3
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.21.1
 	k8s.io/apimachinery => k8s.io/apimachinery v0.21.1
 	k8s.io/apiserver => k8s.io/apiserver v0.21.1

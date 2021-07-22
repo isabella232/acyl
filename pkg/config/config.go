@@ -9,6 +9,7 @@ import (
 
 	"github.com/dollarshaveclub/pvc"
 	"github.com/pkg/errors"
+	"k8s.io/client-go/rest"
 )
 
 type ServerConfig struct {
@@ -128,6 +129,7 @@ func (kc *K8sConfig) ProcessSecretInjections(sf SecretFetcher, injstr string) er
 type HelmClientConfig struct {
 	HelmDriver  string
 	KubeContext string
+	RestConfig  rest.Config
 }
 
 type ConsulConfig struct {

@@ -73,7 +73,7 @@ type KubernetesReporter interface {
 var mpfx = "metahelm."
 
 type K8sClientFactoryFunc func(kubecfgpath, kubectx string) (*kubernetes.Clientset, *rest.Config, error)
-type MetahelmManagerFactoryFunc func(ctx context.Context, kc kubernetes.Interface, kubectx, helmdriver, namespace string) (*metahelm.Manager, error)
+type MetahelmManagerFactoryFunc func(ctx context.Context, kc kubernetes.Interface, hccfg config.HelmClientConfig, namespace string) (*metahelm.Manager, error)
 
 // Defaults configuration options, if not specified otherwise
 const (
@@ -94,16 +94,13 @@ type ChartInstaller struct {
 	k8srepowhitelist []string
 	k8ssecretinjs    map[string]config.K8sSecret
 	mhmf             MetahelmManagerFactoryFunc
-	hcfg             config.HelmClientConfig
+	hccfg            config.HelmClientConfig
 }
 
 var _ Installer = &ChartInstaller{}
 
 // NewChartInstaller returns a ChartInstaller configured with an in-cluster K8s clientset
-func NewChartInstaller(ib images.Builder, dl persistence.DataLayer, fs billy.Filesystem, mc metrics.Collector, k8sGroupBindings map[string]string, k8sRepoWhitelist []string, k8sSecretInjs map[string]config.K8sSecret, k8sJWTPath string, enableK8sTracing bool, hcfg config.HelmClientConfig) (*ChartInstaller, error) {
-	if  hcfg.HelmDriver == "" {
-		hcfg.HelmDriver = DefaultHelmDriver
-	}
+func NewChartInstaller(ib images.Builder, dl persistence.DataLayer, fs billy.Filesystem, mc metrics.Collector, k8sGroupBindings map[string]string, k8sRepoWhitelist []string, k8sSecretInjs map[string]config.K8sSecret, k8sJWTPath string, enableK8sTracing bool, hccfg config.HelmClientConfig) (*ChartInstaller, error) {
 	kc, rcfg, err := NewInClusterK8sClientset(k8sJWTPath, enableK8sTracing)
 	if err != nil {
 		return nil, fmt.Errorf("error getting k8s client: %w", err)
@@ -119,16 +116,13 @@ func NewChartInstaller(ib images.Builder, dl persistence.DataLayer, fs billy.Fil
 		k8srepowhitelist: k8sRepoWhitelist,
 		k8ssecretinjs:    k8sSecretInjs,
 		mhmf:             NewInClusterHelmConfiguration,
-		hcfg:             hcfg,
+		hccfg:            hccfg,
 	}, nil
 }
 
 // NewChartInstallerWithClientsetFromContext returns a ChartInstaller configured with a K8s clientset from the current kubeconfig context
-func NewChartInstallerWithClientsetFromContext(ib images.Builder, dl persistence.DataLayer, fs billy.Filesystem, mc metrics.Collector, k8sGroupBindings map[string]string, k8sRepoWhitelist []string, k8sSecretInjs map[string]config.K8sSecret, kubeconfigpath string, hcfg config.HelmClientConfig) (*ChartInstaller, error) {
-	if  hcfg.HelmDriver == "" {
-		hcfg.HelmDriver = DefaultHelmDriver
-	}
-	kc, rcfg, err := NewKubecfgContextK8sClientset(kubeconfigpath, hcfg.KubeContext)
+func NewChartInstallerWithClientsetFromContext(ib images.Builder, dl persistence.DataLayer, fs billy.Filesystem, mc metrics.Collector, k8sGroupBindings map[string]string, k8sRepoWhitelist []string, k8sSecretInjs map[string]config.K8sSecret, kubeconfigpath string, hccfg config.HelmClientConfig) (*ChartInstaller, error) {
+	kc, rcfg, err := NewKubecfgContextK8sClientset(kubeconfigpath, hccfg.KubeContext)
 	if err != nil {
 		return nil, fmt.Errorf("error getting k8s client: %w", err)
 	}
@@ -143,16 +137,14 @@ func NewChartInstallerWithClientsetFromContext(ib images.Builder, dl persistence
 		k8srepowhitelist: k8sRepoWhitelist,
 		k8ssecretinjs:    k8sSecretInjs,
 		mhmf:             NewInClusterHelmConfiguration,
-		hcfg:             hcfg,
+		hccfg:            hccfg,
 	}, nil
 }
 
 func NewKubecfgContextK8sClientset(kubecfgpath, kubectx string) (*kubernetes.Clientset, *rest.Config, error) {
 	rules := clientcmd.NewDefaultClientConfigLoadingRules()
 	rules.DefaultClientConfig = &clientcmd.DefaultClientConfig
-
 	overrides := &clientcmd.ConfigOverrides{ClusterDefaults: clientcmd.ClusterDefaults}
-
 	if kubectx != "" {
 		overrides.CurrentContext = kubectx
 	}
@@ -238,9 +230,10 @@ type restClientGetter struct {
 
 var _ genericclioptions.RESTClientGetter = &restClientGetter{}
 
-func newRestClientGetter(kctx, namespace string) (*restClientGetter, error) {
+func newRestClientGetter(namespace, kctx string, qps float32, burst int) (*restClientGetter, error) {
 	rules := clientcmd.NewDefaultClientConfigLoadingRules()
-	overrides := &clientcmd.ConfigOverrides{}
+	rules.DefaultClientConfig = &clientcmd.DefaultClientConfig
+	overrides := &clientcmd.ConfigOverrides{ClusterDefaults: clientcmd.ClusterDefaults}
 	if kctx != "" {
 		overrides.CurrentContext = kctx
 	}
@@ -252,6 +245,8 @@ func newRestClientGetter(kctx, namespace string) (*restClientGetter, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not get Kubernetes config for context %q: %s", kctx, err)
 	}
+	restConfig.QPS = qps
+	restConfig.Burst = burst
 	clientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
 		return nil, fmt.Errorf("could not get Kubernetes client: %w", err)
@@ -267,20 +262,23 @@ func newRestClientGetter(kctx, namespace string) (*restClientGetter, error) {
 }
 
 // NewInClusterHelmConfiguration is a HelmClientConfigurationFunc that returns a Helm v3 client configured for use within the k8s cluster
-func NewInClusterHelmConfiguration(ctx context.Context, kc kubernetes.Interface, kubectx, helmdriver, namespace string) (*metahelm.Manager, error) {
-	getter, err := newRestClientGetter(kubectx, namespace)
+func NewInClusterHelmConfiguration(ctx context.Context, kc kubernetes.Interface, hccfg config.HelmClientConfig, namespace string) (*metahelm.Manager, error) {
+	if  hccfg.HelmDriver == "" {
+		hccfg.HelmDriver = DefaultHelmDriver
+	}
+	getter, err := newRestClientGetter(namespace, hccfg.KubeContext, hccfg.RestConfig.QPS, hccfg.RestConfig.Burst)
 	if err != nil {
 		return nil, fmt.Errorf("error getting kube client: %w", err)
 	}
 	cfg := &action.Configuration{}
-	if err := cfg.Init(getter, namespace, helmdriver, func(format string, v ...interface{}) {}); err != nil {
+	if err := cfg.Init(getter, namespace, hccfg.HelmDriver, func(format string, v ...interface{}) {}); err != nil {
 		return nil, fmt.Errorf("error initializing Helm config: %w", err)
 	}
 	return &metahelm.Manager{
 		K8c: kc,
 		HCfg: cfg,
 		LogF: metahelm.LogFunc(func(msg string, args ...interface{}) {
-			eventlogger.GetLogger(ctx).Printf("nitro-metahelm: "+msg, args...)
+			eventlogger.GetLogger(ctx).Printf("metahelm: "+msg, args...)
 		}),
 	}, nil
 }
@@ -416,7 +414,7 @@ func (ci ChartInstaller) BuildAndInstallCharts(ctx context.Context, newenv *EnvI
 
 func (ci ChartInstaller) installOrUpgradeCharts(ctx context.Context, namespace string, csl []metahelm.Chart, env *EnvInfo, b images.Batch, upgrade bool) error {
 	eventlogger.GetLogger(ctx).SetK8sNamespace(namespace)
-	mhm, err := ci.mhmf(ctx, ci.kc, ci.hcfg.KubeContext, ci.hcfg.HelmDriver, namespace)
+	mhm, err := ci.mhmf(ctx, ci.kc, ci.hccfg, namespace)
 	if err != nil {
 		return fmt.Errorf("error getting helm client configuration: %w", err)
 	}
