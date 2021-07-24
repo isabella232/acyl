@@ -242,6 +242,7 @@ github.com/docker/go-units v0.4.0 h1:3uh0PgVws3nIA0Q+MwDC8yjEPf9zjRfZZWXZYDct3Tw
 github.com/docker/go-units v0.4.0/go.mod h1:fgPhTUdO+D/Jk86RDLlptpiXQzgHJF7gydDDbaIK4Dk=
 github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7 h1:UhxFibDNY/bfvqU5CAUmr9zpesgbU6SWc8/B4mflAE4=
 github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7/go.mod h1:cyGadeNEkKy96OOhEzfZl+yxihPEzKnqJwvfuSUqbZE=
+github.com/docker/spdystream v0.0.0-20160310174837-449fdfce4d96/go.mod h1:Qh8CwZgvJUkLughtfhJv5dyTYa91l1fOUCrgjqmcifM=
 github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815/go.mod h1:WwZ+bS3ebgob9U8Nd0kOddGdZWjyMGR8Wziv+TBNwSE=
 github.com/dollarshaveclub/furan v0.6.1-0.20210604153750-8def5a45ce21 h1:Tk/ZOSwdpQeGWhxqsQEQOGzLzt+3x07e/ctBI7PA9A4=
 github.com/dollarshaveclub/furan v0.6.1-0.20210604153750-8def5a45ce21/go.mod h1:Ao5foCJGuG4XmXLj4F15G8d99pGlGzKf4eNWKlMTsdk=
@@ -249,6 +250,10 @@ github.com/dollarshaveclub/line v0.0.0-20171219191008-fc7a351a8b58 h1:kdoBBSdDgY
 github.com/dollarshaveclub/line v0.0.0-20171219191008-fc7a351a8b58/go.mod h1:68yw7mK5d4DoK9smWlOrFNwS3BLWVDdJ+DeRT9xybh0=
 github.com/dollarshaveclub/metahelm v0.0.0-20210602010324-e2e014ae2355 h1:/a2UO1CZyeLhNm6ipY4m8jzFoug85U3WB6Yk5Llz080=
 github.com/dollarshaveclub/metahelm v0.0.0-20210602010324-e2e014ae2355/go.mod h1:aijjNUu7O3UMwXbvIbcwee8Mf6sdTr0ZLiYnTweBM8A=
+github.com/dollarshaveclub/metahelm v0.0.0-20210727192039-0f369a6cfca8 h1:zkMESwFja1fUkXIRLf0+2QAuWWTyXerKoPEbKJXcto0=
+github.com/dollarshaveclub/metahelm v0.0.0-20210727192039-0f369a6cfca8/go.mod h1:L5t5VxSHL3WXgbt34I6n6RHrtrqF04JHNldHRbfI910=
+github.com/dollarshaveclub/metahelm v0.0.0-20210727195316-c65717c90025 h1:FQKx03CWbTCyIKsnkpcIELgaodUInpq6VFLm5t04+dA=
+github.com/dollarshaveclub/metahelm v0.0.0-20210727195316-c65717c90025/go.mod h1:L5t5VxSHL3WXgbt34I6n6RHrtrqF04JHNldHRbfI910=
 github.com/dollarshaveclub/pvc v1.0.0 h1:83UIxUKpU9uTLugOwSUmVHFdU+jRaKnuwlKtt+H4bAk=
 github.com/dollarshaveclub/pvc v1.0.0/go.mod h1:7LmHH4X0SIZg6EzUjD+3L/g8IF4rzoSX+KF2L8tUSus=
 github.com/dsnet/compress v0.0.0-20171208185109-cc9eb1d7ad76 h1:eX+pdPPlD279OWgdx7f6KqIRSONuK7egk+jDx7OM3Ac=
@@ -1426,6 +1431,8 @@ rsc.io/letsencrypt v0.0.3/go.mod h1:buyQKZ6IXrRnB7TdkHP0RyEybLx18HHyOSoTyoOLqNY=
 rsc.io/quote/v3 v3.1.0/go.mod h1:yEA65RcK8LyAZtP9Kv3t0HmxON59tX3rD+tICJqUlj0=
 rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
 sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.0.15/go.mod h1:LEScyzhFmoF5pso/YSeBstl57mOzx9xlU9n85RGrDQg=
+sigs.k8s.io/kustomize v2.0.3+incompatible h1:JUufWFNlI44MdtnjUqVnvh29rR37PQFzPbLXqhyOyX0=
+sigs.k8s.io/kustomize v2.0.3+incompatible/go.mod h1:MkjgH3RdOWrievjo6c9T245dYlB5QeXV4WCbnt/PEpU=
 sigs.k8s.io/kustomize/api v0.8.8 h1:G2z6JPSSjtWWgMeWSoHdXqyftJNmMmyxXpwENGoOtGE=
 sigs.k8s.io/kustomize/api v0.8.8/go.mod h1:He1zoK0nk43Pc6NlV085xDXDXTNprtcyKZVm3swsdNY=
 sigs.k8s.io/kustomize/cmd/config v0.9.10/go.mod h1:Mrby0WnRH7hA6OwOYnYpfpiY0WJIMgYrEDfwOeFdMK0=

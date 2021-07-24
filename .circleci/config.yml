@@ -10,7 +10,9 @@ jobs:
       - run:
           name: Update dependencies
           command: go mod vendor
-      - run: go install -v ./...
+      - run:
+          name: Compile Acyl binary
+          command: go build -v -o github.com/dollarshaveclub/acyl
   test:
     docker:
       - image: circleci/golang:1.16

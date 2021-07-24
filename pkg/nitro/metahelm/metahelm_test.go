@@ -531,7 +531,7 @@ func TestMetahelmInstallCharts(t *testing.T) {
 		dl: dl,
 		ib: ib,
 		mc: &metrics.FakeCollector{},
-		mhmf: func(ctx context.Context, kc kubernetes.Interface, kubectx, helmdriver, namespace string) (*metahelm.Manager, error) {
+		mhmf: func(ctx context.Context, kc kubernetes.Interface, hccfg config.HelmClientConfig, namespace string) (*metahelm.Manager, error) {
 			return &metahelm.Manager{
 				K8c: fkc,
 				HCfg: fakeHelmConfiguration(t),
@@ -604,7 +604,7 @@ func TestMetahelmInstallAndUpgradeChartsBuildError(t *testing.T) {
 		dl:  dl,
 		ib:  ib,
 		mc:  &metrics.FakeCollector{},
-		mhmf: func(ctx context.Context, kc kubernetes.Interface, kubectx, helmdriver, namespace string) (*metahelm.Manager, error) {
+		mhmf: func(ctx context.Context, kc kubernetes.Interface, hccfg config.HelmClientConfig, namespace string) (*metahelm.Manager, error) {
 			return &metahelm.Manager{
 				K8c: fkc,
 				HCfg: fakeHelmConfiguration(t),
@@ -633,7 +633,7 @@ func TestMetahelmInstallAndUpgradeChartsBuildError(t *testing.T) {
 		dl:  dl,
 		ib:  ib,
 		mc:  &metrics.FakeCollector{},
-		mhmf: func(ctx context.Context, kc kubernetes.Interface, kubectx, helmdriver, namespace string) (*metahelm.Manager, error) {
+		mhmf: func(ctx context.Context, kc kubernetes.Interface, hccfg config.HelmClientConfig, namespace string) (*metahelm.Manager, error) {
 			return &metahelm.Manager{
 				K8c: fkc,
 				HCfg: fakeHelmConfiguration(t),
@@ -894,7 +894,7 @@ func TestMetahelmBuildAndInstallCharts(t *testing.T) {
 		dl:  dl,
 		ib:  ib,
 		mc:  &metrics.FakeCollector{},
-		mhmf: func(ctx context.Context, kc kubernetes.Interface, kubectx, helmdriver, namespace string) (*metahelm.Manager, error) {
+		mhmf: func(ctx context.Context, kc kubernetes.Interface, hccfg config.HelmClientConfig, namespace string) (*metahelm.Manager, error) {
 			return &metahelm.Manager{
 				K8c: fkc,
 				HCfg: fakeHelmConfiguration(t),
@@ -1006,7 +1006,7 @@ func TestMetahelmBuildAndUpgradeCharts(t *testing.T) {
 		dl:  dl,
 		ib:  ib,
 		mc:  &metrics.FakeCollector{},
-		mhmf: func(ctx context.Context, kc kubernetes.Interface, kubectx, helmdriver, namespace string) (*metahelm.Manager, error) {
+		mhmf: func(ctx context.Context, kc kubernetes.Interface, hccfg config.HelmClientConfig, namespace string) (*metahelm.Manager, error) {
 			return &metahelm.Manager{
 				K8c: fkc,
 				HCfg: fakeHelmConfiguration(t),

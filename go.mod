@@ -16,7 +16,7 @@ require (
 	github.com/docker/docker v17.12.0-ce-rc1.0.20200618181300-9dc6525e6118+incompatible
 	github.com/dollarshaveclub/furan v0.6.1-0.20210604153750-8def5a45ce21
 	github.com/dollarshaveclub/line v0.0.0-20171219191008-fc7a351a8b58
-	github.com/dollarshaveclub/metahelm v0.0.0-20210602010324-e2e014ae2355
+	github.com/dollarshaveclub/metahelm v0.0.0-20210727195316-c65717c90025
 	github.com/dollarshaveclub/pvc v1.0.0
 	github.com/dsnet/compress v0.0.0-20171208185109-cc9eb1d7ad76 // indirect
 	github.com/emirpasic/gods v1.12.0 // indirect
