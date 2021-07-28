@@ -254,6 +254,8 @@ github.com/dollarshaveclub/metahelm v0.0.0-20210727192039-0f369a6cfca8 h1:zkMESw
 github.com/dollarshaveclub/metahelm v0.0.0-20210727192039-0f369a6cfca8/go.mod h1:L5t5VxSHL3WXgbt34I6n6RHrtrqF04JHNldHRbfI910=
 github.com/dollarshaveclub/metahelm v0.0.0-20210727195316-c65717c90025 h1:FQKx03CWbTCyIKsnkpcIELgaodUInpq6VFLm5t04+dA=
 github.com/dollarshaveclub/metahelm v0.0.0-20210727195316-c65717c90025/go.mod h1:L5t5VxSHL3WXgbt34I6n6RHrtrqF04JHNldHRbfI910=
+github.com/dollarshaveclub/metahelm v0.0.0-20210728174749-1e0a2469ce20 h1:84C6WNyywVCUOKLQmuW4tQZwyj5tXq5w2FgkyFx6gHc=
+github.com/dollarshaveclub/metahelm v0.0.0-20210728174749-1e0a2469ce20/go.mod h1:L5t5VxSHL3WXgbt34I6n6RHrtrqF04JHNldHRbfI910=
 github.com/dollarshaveclub/pvc v1.0.0 h1:83UIxUKpU9uTLugOwSUmVHFdU+jRaKnuwlKtt+H4bAk=
 github.com/dollarshaveclub/pvc v1.0.0/go.mod h1:7LmHH4X0SIZg6EzUjD+3L/g8IF4rzoSX+KF2L8tUSus=
 github.com/dsnet/compress v0.0.0-20171208185109-cc9eb1d7ad76 h1:eX+pdPPlD279OWgdx7f6KqIRSONuK7egk+jDx7OM3Ac=
