@@ -196,22 +196,39 @@ func TestMetahelmGenerateCharts(t *testing.T) {
 							ValueOverrides: []string{"yetanotherthing=yyyy"},
 						},
 					},
+					Environment: []models.RepoConfigDependency{
+						models.RepoConfigDependency{
+							Name: "car-buz",
+							Repo: "car/buz",
+							AppMetadata: models.RepoConfigAppMetadata{
+								ChartTagValue:  "image.tag",
+								Repo:           "car/buz",
+								Ref:            "cccc",
+								ValueOverrides: []string{"somethingmore=abcd", "yetanotherthingmore=xxff"},
+							},
+							ValueOverrides: []string{"yetanotherthingmore=yyza"},
+						},
+					},
 				},
 			},
 			inputCL: ChartLocations{
 				"foo-bar": ChartLocation{ChartPath: "testdata/chart"},
 				"bar-baz": ChartLocation{ChartPath: "testdata/chart"},
+				"car-buz": ChartLocation{ChartPath: "testdata/chart"},
 			},
 			verifyf: func(charts []metahelm.Chart) error {
-				if len(charts) != 2 {
+				if len(charts) != 3 {
 					return fmt.Errorf("bad chart length: %v", len(charts))
 				}
 				cm := chartMap(charts)
 				if c, ok := cm["foo-bar"]; ok {
-					if len(c.DependencyList) != 1 {
+					if len(c.DependencyList) != 2 {
 						return fmt.Errorf("bad dependencies for testdata/chart: %v", c.DependencyList)
 					}
 					if c.DependencyList[0] != "bar-baz" {
+						return fmt.Errorf("bad dependency for testdata/chart: %v", c.DependencyList[0])
+					}
+					if c.DependencyList[1] != "car-buz" {
 						return fmt.Errorf("bad dependency for testdata/chart: %v", c.DependencyList[0])
 					}
 				} else {
@@ -223,6 +240,13 @@ func TestMetahelmGenerateCharts(t *testing.T) {
 					}
 				} else {
 					return errors.New("bar-baz missing")
+				}
+				if c, ok := cm["car-buz"]; ok {
+					if len(c.DependencyList) != 0 {
+						return fmt.Errorf("bad dependencies for car-buz: %v", c.DependencyList)
+					}
+				} else {
+					return errors.New("car-buz missing")
 				}
 				checkOverrideString := func(overrides []byte, name, value string) error {
 					om := map[string]interface{}{}
@@ -258,6 +282,10 @@ func TestMetahelmGenerateCharts(t *testing.T) {
 				if err := checkOverrideString(chart.ValueOverrides, "yetanotherthing", "yyyy"); err != nil {
 					return fmt.Errorf("error checking yetanotherthing override: %w", err)
 				}
+				chart = cm["car-buz"]
+				if err := checkOverrideString(chart.ValueOverrides, "somethingmore", "abcd"); err != nil {
+					return fmt.Errorf("error checking somethingmore override: %w", err)
+				}
 				return nil
 			},
 		},
@@ -282,11 +310,23 @@ func TestMetahelmGenerateCharts(t *testing.T) {
 							},
 						},
 					},
+					Environment: []models.RepoConfigDependency{
+						models.RepoConfigDependency{
+							Name: "car-buz",
+							Repo: "car/buz",
+							AppMetadata: models.RepoConfigAppMetadata{
+								ChartTagValue: "image.tag",
+								Repo:          "car/buz",
+								Ref:           "cccc",
+							},
+						},
+					},
 				},
 			},
 			inputCL: ChartLocations{
 				"foo-bar": ChartLocation{ChartPath: "testdata/chart"},
 				"bar-baz": ChartLocation{ChartPath: "testdata/chart"},
+				"car-buz": ChartLocation{ChartPath: "testdata/chart"},
 			},
 			isError:     true,
 			errContains: "Ref is empty",
@@ -312,11 +352,23 @@ func TestMetahelmGenerateCharts(t *testing.T) {
 							},
 						},
 					},
+					Environment: []models.RepoConfigDependency{
+						models.RepoConfigDependency{
+							Name: "car-buz",
+							Repo: "car/buz",
+							AppMetadata: models.RepoConfigAppMetadata{
+								ChartTagValue: "image.tag",
+								Repo:          "car/buz",
+								Ref:           "cccc",
+							},
+						},
+					},
 				},
 			},
 			inputCL: ChartLocations{
 				"foo-bar": ChartLocation{ChartPath: "testdata/chart"},
 				"bar-baz": ChartLocation{ChartPath: "testdata/chart"},
+				"car-buz": ChartLocation{ChartPath: "testdata/chart"},
 			},
 			isError:     true,
 			errContains: "Name is empty",
@@ -343,10 +395,22 @@ func TestMetahelmGenerateCharts(t *testing.T) {
 							},
 						},
 					},
+					Environment: []models.RepoConfigDependency{
+						models.RepoConfigDependency{
+							Name: "car-buz",
+							Repo: "car/buz",
+							AppMetadata: models.RepoConfigAppMetadata{
+								ChartTagValue: "image.tag",
+								Repo:          "car/buz",
+								Ref:           "cccc",
+							},
+						},
+					},
 				},
 			},
 			inputCL: ChartLocations{
-				"foo-bar": ChartLocation{ChartPath: ".chart"},
+				"foo-bar": ChartLocation{ChartPath: "testdata/chart"},
+				"bar-baz": ChartLocation{ChartPath: "testdata/chart"},
 			},
 			isError:     true,
 			errContains: "dependency not found in ChartLocations",
@@ -374,11 +438,23 @@ func TestMetahelmGenerateCharts(t *testing.T) {
 							Requires: []string{"doesnotexist"},
 						},
 					},
+					Environment: []models.RepoConfigDependency{
+						models.RepoConfigDependency{
+							Name: "car-buz",
+							Repo: "car/buz",
+							AppMetadata: models.RepoConfigAppMetadata{
+								ChartTagValue: "image.tag",
+								Repo:          "car/buz",
+								Ref:           "cccc",
+							},
+						},
+					},
 				},
 			},
 			inputCL: ChartLocations{
 				"foo-bar": ChartLocation{ChartPath: "testdata/chart"},
 				"bar-baz": ChartLocation{ChartPath: "testdata/chart"},
+				"car-buz": ChartLocation{ChartPath: "testdata/chart"},
 			},
 			isError:     true,
 			errContains: "unknown requires on chart",
@@ -406,11 +482,23 @@ func TestMetahelmGenerateCharts(t *testing.T) {
 							},
 						},
 					},
+					Environment: []models.RepoConfigDependency{
+						models.RepoConfigDependency{
+							Name: "car-buz",
+							Repo: "car/buz",
+							AppMetadata: models.RepoConfigAppMetadata{
+								ChartTagValue: "image.tag",
+								Repo:          "car/buz",
+								Ref:           "cccc",
+							},
+						},
+					},
 				},
 			},
 			inputCL: ChartLocations{
 				"foo-bar": ChartLocation{ChartPath: "testdata/chart"},
 				"bar-baz": ChartLocation{ChartPath: "testdata/chart"},
+				"car-buz": ChartLocation{ChartPath: "testdata/chart"},
 			},
 			isError:     true,
 			errContains: "ChartTagValue is empty",
