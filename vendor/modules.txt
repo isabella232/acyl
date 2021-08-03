@@ -1236,7 +1236,6 @@ k8s.io/helm/pkg/lint
 k8s.io/helm/pkg/lint/rules
 k8s.io/helm/pkg/lint/support
 k8s.io/helm/pkg/proto/hapi/chart
-k8s.io/helm/pkg/proto/hapi/release
 k8s.io/helm/pkg/proto/hapi/version
 k8s.io/helm/pkg/strvals
 k8s.io/helm/pkg/sympath
