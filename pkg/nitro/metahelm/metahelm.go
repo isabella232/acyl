@@ -79,6 +79,8 @@ type MetahelmManagerFactoryFunc func(ctx context.Context, kc kubernetes.Interfac
 const (
 	DefaultHelmDriver 		= "secrets"
 	MaxPodContainerLogLines = 1000
+	DefaultRestConfigQPS    = 50.0
+	DefaultRestConfigBurst  = 100
 )
 
 // ChartInstaller is an object that manages namespaces and install/upgrades/deletes metahelm chart graphs
@@ -230,7 +232,7 @@ type restClientGetter struct {
 
 var _ genericclioptions.RESTClientGetter = &restClientGetter{}
 
-func newRestClientGetter(namespace, kctx string, qps float32, burst int) (*restClientGetter, error) {
+func newRestClientGetter(namespace, kctx string) (*restClientGetter, error) {
 	rules := clientcmd.NewDefaultClientConfigLoadingRules()
 	rules.DefaultClientConfig = &clientcmd.DefaultClientConfig
 	overrides := &clientcmd.ConfigOverrides{ClusterDefaults: clientcmd.ClusterDefaults}
@@ -245,8 +247,8 @@ func newRestClientGetter(namespace, kctx string, qps float32, burst int) (*restC
 	if err != nil {
 		return nil, fmt.Errorf("could not get Kubernetes config for context %q: %s", kctx, err)
 	}
-	restConfig.QPS = qps
-	restConfig.Burst = burst
+	restConfig.QPS = DefaultRestConfigQPS
+	restConfig.Burst = DefaultRestConfigBurst
 	clientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
 		return nil, fmt.Errorf("could not get Kubernetes client: %w", err)
@@ -266,7 +268,7 @@ func NewInClusterHelmConfiguration(ctx context.Context, kc kubernetes.Interface,
 	if  hccfg.HelmDriver == "" {
 		hccfg.HelmDriver = DefaultHelmDriver
 	}
-	getter, err := newRestClientGetter(namespace, hccfg.KubeContext, hccfg.RestConfig.QPS, hccfg.RestConfig.Burst)
+	getter, err := newRestClientGetter(namespace, hccfg.KubeContext)
 	if err != nil {
 		return nil, fmt.Errorf("error getting kube client: %w", err)
 	}

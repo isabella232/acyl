@@ -10,7 +10,8 @@ image:
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
 
-imagePullSecrets: []
+imagePullSecrets:
+  - name: nginx-secret
 nameOverride: ""
 fullnameOverride: ""
 
@@ -81,3 +82,9 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+secrets:
+  nginx:
+    data:
+      cert: LS0tLS1CRUdJTiBD
+      key: LS0tLS1CRUdJTiBS
