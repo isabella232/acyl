@@ -417,11 +417,8 @@ func (ci ChartInstaller) BuildAndInstallCharts(ctx context.Context, newenv *EnvI
 func (ci ChartInstaller) installOrUpgradeCharts(ctx context.Context, namespace string, csl []metahelm.Chart, env *EnvInfo, b images.Batch, upgrade bool) error {
 	eventlogger.GetLogger(ctx).SetK8sNamespace(namespace)
 	mhm, err := ci.mhmf(ctx, ci.kc, ci.hccfg, namespace)
-	if err != nil {
+	if err != nil || mhm == nil {
 		return fmt.Errorf("error getting helm client configuration: %w", err)
-	}
-	if mhm == nil {
-		return fmt.Errorf("error getting helm client: %w", err)
 	}
 	actStr, actingStr := "install", "install"
 	if upgrade {
