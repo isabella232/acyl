@@ -749,8 +749,8 @@ func (ci ChartInstaller) isRepoPrivileged(repo string) bool {
 func (ci ChartInstaller) setupNamespace(ctx context.Context, envname, repo, ns string) error {
 	ci.log(ctx, "setting up namespace: %v", ns)
 
-	// create service account for Tiller
-	ci.log(ctx, "creating service account for tiller: %v", serviceAccount)
+	// create service account
+	ci.log(ctx, "creating service account: %v", serviceAccount)
 	if _, err := ci.kc.CoreV1().ServiceAccounts(ns).Create(ctx, &corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: serviceAccount}}, metav1.CreateOptions{}); err != nil {
 		return fmt.Errorf("error creating service acount: %w", err)
 	}
