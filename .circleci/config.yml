@@ -8,7 +8,9 @@ jobs:
       - image: circleci/golang:1.16
       - image: circleci/postgres:12-alpine-ram
         environment:
-        - POSTGRES_USER=acyl
+          POSTGRES_USER: acyl
+          POSTGRES_PASSWORD: acyl
+          POSTGRES_DB: acyl
     working_directory: /go/src/github.com/dollarshaveclub/acyl
     steps:
       - checkout
@@ -21,9 +23,6 @@ jobs:
       - run:
           name: Wait for Postgres
           command: dockerize -wait tcp://localhost:5432 -timeout 1m
-      - run:
-          name: Compile Acyl binary
-          command: go install github.com/dollarshaveclub/acyl
       - run:
           name: Run Acyl migrations
           command: acyl pg-migrate
