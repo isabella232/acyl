@@ -77,7 +77,7 @@ type MetahelmManagerFactoryFunc func(ctx context.Context, kc kubernetes.Interfac
 
 // Defaults configuration options, if not specified otherwise
 const (
-	DefaultHelmDriver 		= "secrets"
+	DefaultHelmDriver       = "secrets"
 	MaxPodContainerLogLines = 1000
 	DefaultRestConfigQPS    = 50.0
 	DefaultRestConfigBurst  = 100
@@ -265,23 +265,28 @@ func newRestClientGetter(namespace, kctx string) (*restClientGetter, error) {
 
 // NewInClusterHelmConfiguration is a HelmClientConfigurationFunc that returns a Helm v3 client configured for use within the k8s cluster
 func NewInClusterHelmConfiguration(ctx context.Context, kc kubernetes.Interface, hccfg config.HelmClientConfig, namespace string) (*metahelm.Manager, error) {
-	if  hccfg.HelmDriver == "" {
+	if hccfg.HelmDriver == "" {
 		hccfg.HelmDriver = DefaultHelmDriver
 	}
 	getter, err := newRestClientGetter(namespace, hccfg.KubeContext)
 	if err != nil {
 		return nil, fmt.Errorf("error getting kube client: %w", err)
 	}
-	cfg := &action.Configuration{}
-	if err := cfg.Init(getter, namespace, hccfg.HelmDriver, func(format string, v ...interface{}) {}); err != nil {
+	logf := func(msg string, args ...interface{}) {
+		eventlogger.GetLogger(ctx).Printf("metahelm: helm v3: "+msg, args...)
+	}
+	cfg := &action.Configuration{
+		Log: logf,
+	}
+	if err := cfg.Init(getter, namespace, hccfg.HelmDriver, logf); err != nil {
 		return nil, fmt.Errorf("error initializing Helm config: %w", err)
 	}
 	return &metahelm.Manager{
-		K8c: kc,
+		K8c:  kc,
 		HCfg: cfg,
-		LogF: metahelm.LogFunc(func(msg string, args ...interface{}) {
+		LogF: func(msg string, args ...interface{}) {
 			eventlogger.GetLogger(ctx).Printf("metahelm: "+msg, args...)
-		}),
+		},
 	}, nil
 }
 
