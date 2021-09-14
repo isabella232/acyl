@@ -57,7 +57,7 @@ jobs:
     machine:
       image: ubuntu-2004:202010-01
     environment:
-      K8S_VERSION: v1.20.10
+      K8S_VERSION: v1.15.12
       MINIKUBE_VERSION: v1.23.0
     steps:
       - checkout
@@ -78,6 +78,11 @@ jobs:
       - run:
           name: setup conntrack
           command: sudo apt update && sudo apt-get install -y conntrack
+      - run:
+          name: disable systemd-resolvd
+          command: |
+            sudo systemctl disable systemd-resolved
+            sudo systemctl stop systemd-resolved
       - run:
           name: start minikube
           command: |
@@ -103,7 +108,6 @@ jobs:
           name: setup secrets
           working_directory: testing/
           command: ./setup_cci_secrets.sh
-
       - run:
           name: start integration job
           working_directory: testing/
