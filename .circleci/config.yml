@@ -104,6 +104,11 @@ jobs:
           working_directory: testing/
           command: ./setup_cci_secrets.sh
       - run:
+          name: disable systemd-resolvd
+          command: |
+            sudo systemctl disable systemd-resolved
+            sudo systemctl stop systemd-resolved
+      - run:
           name: start integration job
           working_directory: testing/
           command: kubectl apply -f ./integration-test-job.yaml
