@@ -10,7 +10,7 @@ require (
 	github.com/Masterminds/sprig v2.16.0+incompatible // indirect
 	github.com/alecthomas/chroma v0.6.2
 	github.com/aokoli/goutils v1.0.1 // indirect
-	github.com/bradleyfalzon/ghinstallation v0.1.3 // indirect
+	github.com/bradleyfalzon/ghinstallation v1.1.1 // indirect
 	github.com/docker/cli v20.10.5+incompatible
 	github.com/docker/distribution v2.7.1+incompatible
 	github.com/docker/docker v17.12.0-ce-rc1.0.20200618181300-9dc6525e6118+incompatible
@@ -23,16 +23,18 @@ require (
 	github.com/gdamore/tcell v1.1.1
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-pg/pg v6.6.7+incompatible
-	github.com/golang/mock v1.4.1
+	github.com/golang/mock v1.4.4
 	github.com/golang/snappy v0.0.3 // indirect
-	github.com/google/go-cmp v0.5.2
+	github.com/google/go-cmp v0.5.6
 	github.com/google/go-github v17.0.0+incompatible
+	github.com/google/go-github/v29 v29.0.3 // indirect
 	github.com/google/go-github/v30 v30.1.0 // indirect
+	github.com/google/go-github/v38 v38.1.0
 	github.com/google/uuid v1.1.2
 	github.com/googleapis/gnostic v0.5.1 // indirect
 	github.com/gorilla/mux v1.7.4
 	github.com/gorilla/securecookie v1.1.1
-	github.com/gorilla/sessions v1.2.0
+	github.com/gorilla/sessions v1.2.1
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-multierror v1.1.1
@@ -50,14 +52,13 @@ require (
 	github.com/nlopes/slack v0.1.0
 	github.com/nwaples/rardecode v1.0.0 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
-	github.com/palantir/go-githubapp v0.1.0
+	github.com/palantir/go-githubapp v0.9.2-0.20210830144646-08ca97a77f90
 	github.com/philhofer/fwd v1.0.0 // indirect
 	github.com/pierrec/lz4 v2.6.0+incompatible // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/rivo/tview v0.0.0-20190113120821-e5e361b9d790
-	github.com/rs/zerolog v1.14.3
-	github.com/shurcooL/githubv4 v0.0.0-20190601194912-068505affed7
-	github.com/shurcooL/graphql v0.0.0-20181231061246-d48a9a75455f // indirect
+	github.com/rs/zerolog v1.18.0
+	github.com/shurcooL/githubv4 v0.0.0-20191127044304-8f68eb5628d0
 	github.com/spf13/afero v1.2.2
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/pflag v1.0.5
@@ -66,7 +67,7 @@ require (
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	golang.org/x/crypto v0.0.0-20210317152858-513c2a44f670
 	golang.org/x/net v0.0.0-20210316092652-d523dce5a7f4
-	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
+	golang.org/x/oauth2 v0.0.0-20210113205817-d3ed898aa8a3
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	gopkg.in/DataDog/dd-trace-go.v1 v1.20.1
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f
