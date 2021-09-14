@@ -20,7 +20,6 @@ application:
 #    - "app.secrets_backend=env"
 #    - "app.secrets_mapping=ACYL_{{ .ID }}"
 #    - "app.secrets_from_env=true"
-#    - "app.k8s_secret_injections="
 #    - "app.operation_timeout_override=10m"
 #    - "app.k8s_secret_injections=image-pull-secret=k8s/image_pull_secret"
 #    - "app.ui_base_url=http://192.168.64.10:4000"

@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/dollarshaveclub/acyl/pkg/config"
-	"github.com/dollarshaveclub/acyl/pkg/nitro/metahelm"
 	"github.com/dollarshaveclub/acyl/pkg/secrets"
 	"github.com/dollarshaveclub/pvc"
 	"github.com/spf13/cobra"
@@ -22,8 +21,7 @@ var vaultConfig config.VaultConfig
 var secretsConfig config.SecretsConfig
 var secretsbackend string
 var k8sClientConfig config.K8sClientConfig
-var tillerImageName string
-var tillerConfig metahelm.TillerConfig
+var helmClientConfig config.HelmClientConfig
 
 var RootCmd = &cobra.Command{
 	Use:   "acyl",
@@ -46,7 +44,8 @@ func init() {
 	RootCmd.PersistentFlags().StringVar(&secretsbackend, "secrets-backend", "vault", "Secret backend (one of: vault,env)")
 	RootCmd.PersistentFlags().StringVar(&secretsConfig.Mapping, "secrets-mapping", "", "Secrets mapping template string (required)")
 	RootCmd.PersistentFlags().StringVar(&k8sClientConfig.JWTPath, "k8s-jwt-path", "/var/run/secrets/kubernetes.io/serviceaccount/token", "Path to the JWT used to authenticate the k8s client to the API server")
-	RootCmd.PersistentFlags().StringVar(&tillerConfig.Image, "tiller-image", "helmpack/tiller:v2.17.0", "Name of Tiller image to use when installing charts")
+	RootCmd.PersistentFlags().StringVar(&helmClientConfig.HelmDriver, "helm-driver", os.Getenv("HELM_DRIVER"), "Sets helm driver (default: secrets)")
+	RootCmd.PersistentFlags().StringVar(&helmClientConfig.KubeContext, "kubectx", "", "Sets kubernetes context (overrides current context)")
 }
 
 func clierr(msg string, params ...interface{}) {
