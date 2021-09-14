@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/google/go-github/github"
+	"github.com/google/go-github/v38/github"
 )
 
 // GitHubAppInstallationClient describes a GitHub client that returns user-scoped metadata regarding an app installation
@@ -76,7 +76,7 @@ func (ghc *GitHubClient) GetUserAppRepos(ctx context.Context, instID int64) ([]s
 		if err != nil {
 			return nil, fmt.Errorf("error listing user repos: %v", err)
 		}
-		for _, repo := range repos {
+		for _, repo := range repos.Repositories {
 			if repo != nil && repo.FullName != nil {
 				out = append(out, *repo.FullName)
 			}
@@ -116,7 +116,7 @@ func (ghc *GitHubClient) GetUserAppRepoPermissions(ctx context.Context, instID i
 		if err != nil {
 			return nil, fmt.Errorf("error listing user repos: %v", err)
 		}
-		rs = append(rs, repos...)
+		rs = append(rs, repos.Repositories...)
 		if resp.NextPage == 0 {
 			break
 		}
