@@ -79,14 +79,9 @@ jobs:
           name: setup conntrack
           command: sudo apt update && sudo apt-get install -y conntrack
       - run:
-          name: disable systemd-resolvd
-          command: |
-            sudo systemctl disable systemd-resolved
-            sudo systemctl stop systemd-resolved
-      - run:
           name: start minikube
           command: |
-            sudo -E minikube start --vm-driver=none --kubernetes-version=${K8S_VERSION}
+            sudo -E minikube start --vm-driver=none --kubernetes-version=${K8S_VERSION} --extra-config=kubelet.resolv-conf=/run/systemd/resolve/resolv.conf
       - run:
           name: fix permissions
           command: |
