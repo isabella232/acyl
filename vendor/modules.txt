@@ -574,7 +574,7 @@ github.com/stretchr/testify/assert
 # github.com/tinylib/msgp v1.1.0
 ## explicit
 github.com/tinylib/msgp/msgp
-# github.com/ulikunitz/xz v0.5.5
+# github.com/ulikunitz/xz v0.5.8
 ## explicit
 github.com/ulikunitz/xz
 github.com/ulikunitz/xz/internal/hash
