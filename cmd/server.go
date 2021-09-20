@@ -72,6 +72,8 @@ func init() {
 	serverCmd.PersistentFlags().StringVar(&githubConfig.TypePath, "repo-type-path", "acyl.yml", "Relative path within the target repo to look for the type definition")
 	serverCmd.PersistentFlags().StringVar(&serverConfig.WordnetPath, "wordnet-path", "/opt/words.json.gz", "Path to gzip-compressed JSON wordnet file")
 	serverCmd.PersistentFlags().StringSliceVar(&serverConfig.FuranAddrs, "furan-addrs", []string{}, "Furan hosts")
+	serverCmd.PersistentFlags().BoolVar(&serverConfig.EnableFuran2, "use-furan2", false, "Enable Furan 2 image builder")
+	serverCmd.PersistentFlags().StringVar(&serverConfig.Furan2Addr, "furan2-addr", "", "Furan2 host:port")
 	serverCmd.PersistentFlags().StringVar(&slackConfig.Channel, "slack-channel", "dyn-qa-notifications", "Slack channel for notifications")
 	serverCmd.PersistentFlags().StringVar(&slackConfig.Username, "slack-username", "Acyl Environment Notifier", "Slack username for notifications")
 	serverCmd.PersistentFlags().StringVar(&slackConfig.IconURL, "slack-icon-url", "https://picsum.photos/48/48", "Slack user avatar icon for notifications")
@@ -157,15 +159,30 @@ func server(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatalf("error setting up nitro metrics collector: %v", err)
 	}
-	fbb, err := images.NewFuranBuilderBackend(serverConfig.FuranAddrs, dl, mc, os.Stderr, datadogServiceName)
-	if err != nil {
-		log.Fatalf("error getting Furan image builder backend: %v", err)
+
+	// Furan vs Furan 2
+	var ibb images.BuilderBackend
+	if serverConfig.EnableFuran2 {
+		log.Printf("using furan2 at %v for image builds", serverConfig.Furan2Addr)
+		fbb, err := images.NewFuran2BuilderBackend(serverConfig.Furan2Addr, serverConfig.Furan2APIKey, int64(githubConfig.OAuth.AppInstallationID), false, dl, rc, mc)
+		if err != nil {
+			log.Fatalf("error getting Furan 2 image builder backend: %v", err)
+		}
+		ibb = fbb
+	} else {
+		log.Printf("falling back to legacy furan 1 at %v for image builds", serverConfig.FuranAddrs)
+		fbb, err := images.NewFuranBuilderBackend(serverConfig.FuranAddrs, dl, mc, os.Stderr, datadogServiceName)
+		if err != nil {
+			log.Fatalf("error getting Furan image builder backend: %v", err)
+		}
+		ibb = fbb
 	}
 	ib := &images.ImageBuilder{
 		DL:      dl,
 		MC:      nmc,
-		Backend: fbb,
+		Backend: ibb,
 	}
+
 	fs := osfs.New("")
 	if err := k8sConfig.ProcessPrivilegedRepos(k8sPrivilegedReposStr); err != nil {
 		log.Fatalf("error in k8s privileged repos: %v", err)

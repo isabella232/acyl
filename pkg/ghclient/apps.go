@@ -13,6 +13,7 @@ type GitHubAppInstallationClient interface {
 	GetUserAppRepos(ctx context.Context, appID int64) ([]string, error)
 	GetUser(ctx context.Context) (string, error)
 	GetUserAppRepoPermissions(ctx context.Context, instID int64) (map[string]AppRepoPermissions, error)
+	GetInstallationToken(ctx context.Context, instID int64) (string, error)
 }
 
 type AppInstallation struct {
@@ -134,4 +135,14 @@ func (ghc *GitHubClient) GetUserAppRepoPermissions(ctx context.Context, instID i
 		}
 	}
 	return out, nil
+}
+
+// GetInstallationToken gets an installation-scoped GitHub access token with permissions equal to the app installation with a validity period of one hour,
+// for use with subsequent GitHub API calls by external systems (Furan).
+func (ghc *GitHubClient) GetInstallationToken(ctx context.Context, instID int64) (string, error) {
+	tkn, _, err := ghc.getClient(ctx).Apps.CreateInstallationToken(ctx, instID, &github.InstallationTokenOptions{})
+	if err != nil || tkn == nil || tkn.Token == nil {
+		return "", fmt.Errorf("error getting installation token: %w", err)
+	}
+	return *tkn.Token, nil
 }

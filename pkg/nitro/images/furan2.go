@@ -6,6 +6,7 @@ import (
 	"io"
 
 	"github.com/dollarshaveclub/acyl/pkg/eventlogger"
+	"github.com/dollarshaveclub/acyl/pkg/ghclient"
 	"github.com/dollarshaveclub/acyl/pkg/metrics"
 	"github.com/dollarshaveclub/acyl/pkg/persistence"
 	furan "github.com/dollarshaveclub/furan/v2/pkg/client"
@@ -13,14 +14,16 @@ import (
 )
 
 type Furan2BuilderBackend struct {
-	dl persistence.DataLayer
-	mc metrics.Collector
-	rb *furan.RemoteBuilder
+	dl          persistence.DataLayer
+	mc          metrics.Collector
+	rb          *furan.RemoteBuilder
+	rc          ghclient.GitHubAppInstallationClient
+	ghappInstID int64
 }
 
 var _ BuilderBackend = &Furan2BuilderBackend{}
 
-func NewFuran2BuilderBackend(addr, apikey string, skipVerifyTLS bool, dl persistence.DataLayer, mc metrics.Collector) (*Furan2BuilderBackend, error) {
+func NewFuran2BuilderBackend(addr, apikey string, ghappInstID int64, skipVerifyTLS bool, dl persistence.DataLayer, rc ghclient.GitHubAppInstallationClient, mc metrics.Collector) (*Furan2BuilderBackend, error) {
 	rb, err := furan.New(furan.Options{
 		Address:               addr,
 		APIKey:                apikey,
@@ -30,9 +33,11 @@ func NewFuran2BuilderBackend(addr, apikey string, skipVerifyTLS bool, dl persist
 		return nil, fmt.Errorf("error creating Furan client: %w", err)
 	}
 	return &Furan2BuilderBackend{
-		dl: dl,
-		mc: mc,
-		rb: rb,
+		dl:          dl,
+		mc:          mc,
+		rb:          rb,
+		rc:          rc,
+		ghappInstID: ghappInstID,
 	}, nil
 }
 
@@ -46,13 +51,20 @@ func (fib *Furan2BuilderBackend) BuildImage(ctx context.Context, envName, github
 		ops.BuildArgs = make(map[string]string)
 	}
 	ops.BuildArgs["GIT_COMMIT_SHA"] = ref
+
+	tkn, err := fib.rc.GetInstallationToken(ctx, fib.ghappInstID)
+	if err != nil {
+		return fmt.Errorf("error creating github app installation token: %w", err)
+	}
+
 	req := furanrpc.BuildRequest{
 		Build: &furanrpc.BuildDefinition{
-			GithubRepo:     githubRepo,
-			Ref:            ref,
-			Tags:           []string{ref},
-			DockerfilePath: ops.DockerfilePath,
-			Args:           ops.BuildArgs,
+			GithubRepo:       githubRepo,
+			GithubCredential: tkn,
+			Ref:              ref,
+			Tags:             []string{ref},
+			DockerfilePath:   ops.DockerfilePath,
+			Args:             ops.BuildArgs,
 		},
 		Push: &furanrpc.PushDefinition{
 			Registries: []*furanrpc.PushRegistryDefinition{
@@ -65,7 +77,7 @@ func (fib *Furan2BuilderBackend) BuildImage(ctx context.Context, envName, github
 	}
 	fib.dl.AddEvent(ctx, envName, fmt.Sprintf("building container: %v:%v", githubRepo, ref))
 
-	var err error
+	err = nil
 	defer fib.mc.TimeContainerBuild(envName, githubRepo, ref, githubRepo, ref, &err)()
 
 	retries := 1

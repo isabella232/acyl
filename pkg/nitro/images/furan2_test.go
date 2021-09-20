@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dollarshaveclub/acyl/pkg/ghclient"
 	"github.com/dollarshaveclub/acyl/pkg/metrics"
 	"github.com/dollarshaveclub/acyl/pkg/persistence"
 	"github.com/dollarshaveclub/furan/v2/pkg/generated/furanrpc"
@@ -112,8 +113,9 @@ func TestFuran2ImageBackendBuildImage(t *testing.T) {
 
 	dl := persistence.NewFakeDataLayer()
 	mc := &metrics.FakeCollector{}
+	rc := &ghclient.FakeRepoClient{}
 
-	fbb, err := NewFuran2BuilderBackend(l.Addr().String(), "asdf", true, dl, mc)
+	fbb, err := NewFuran2BuilderBackend(l.Addr().String(), "asdf", 1, true, dl, rc, mc)
 	if err != nil {
 		t.Fatalf("error creating backend: %v", err)
 	}

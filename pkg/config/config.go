@@ -18,6 +18,9 @@ type ServerConfig struct {
 	TLSCert                    tls.Certificate
 	WordnetPath                string
 	FuranAddrs                 []string
+	EnableFuran2               bool
+	Furan2Addr                 string
+	Furan2APIKey               string
 	APIKeys                    []string
 	ReaperIntervalSecs         uint
 	EventRateLimitPerSecond    uint
