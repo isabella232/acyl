@@ -52,7 +52,7 @@ func (fib *Furan2BuilderBackend) BuildImage(ctx context.Context, envName, github
 	}
 	ops.BuildArgs["GIT_COMMIT_SHA"] = ref
 
-	tkn, err := fib.rc.GetInstallationToken(ctx, fib.ghappInstID)
+	tkn, err := fib.rc.GetInstallationTokenForRepo(ctx, fib.ghappInstID, githubRepo)
 	if err != nil {
 		return fmt.Errorf("error creating github app installation token: %w", err)
 	}

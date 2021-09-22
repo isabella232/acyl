@@ -4,20 +4,20 @@ import "context"
 
 // FakeRepoClient is fake implementaiton of RepoClient that runs user-supplied functions for each method
 type FakeRepoClient struct {
-	GetBranchFunc                 func(context.Context, string, string) (BranchInfo, error)
-	GetBranchesFunc               func(context.Context, string) ([]BranchInfo, error)
-	GetTagsFunc                   func(context.Context, string) ([]BranchInfo, error)
-	SetStatusFunc                 func(context.Context, string, string, *CommitStatus) error
-	GetPRStatusFunc               func(context.Context, string, uint) (string, error)
-	GetCommitMessageFunc          func(context.Context, string, string) (string, error)
-	GetFileContentsFunc           func(ctx context.Context, repo string, path string, ref string) ([]byte, error)
-	GetDirectoryContentsFunc      func(ctx context.Context, repo, path, ref string) (map[string]FileContents, error)
-	GetUserAppInstallationsFunc   func(ctx context.Context) (AppInstallations, error)
-	GetUserAppReposFunc           func(ctx context.Context, instID int64) ([]string, error)
-	GetUserFunc                   func(ctx context.Context) (string, error)
-	GetUserAppRepoPermissionsFunc func(ctx context.Context, instID int64) (map[string]AppRepoPermissions, error)
-	GetRepoArchiveFunc            func(ctx context.Context, repo, ref string) (string, error)
-	GetInstallationTokenFunc      func(ctx context.Context, instID int64) (string, error)
+	GetBranchFunc                   func(context.Context, string, string) (BranchInfo, error)
+	GetBranchesFunc                 func(context.Context, string) ([]BranchInfo, error)
+	GetTagsFunc                     func(context.Context, string) ([]BranchInfo, error)
+	SetStatusFunc                   func(context.Context, string, string, *CommitStatus) error
+	GetPRStatusFunc                 func(context.Context, string, uint) (string, error)
+	GetCommitMessageFunc            func(context.Context, string, string) (string, error)
+	GetFileContentsFunc             func(ctx context.Context, repo string, path string, ref string) ([]byte, error)
+	GetDirectoryContentsFunc        func(ctx context.Context, repo, path, ref string) (map[string]FileContents, error)
+	GetUserAppInstallationsFunc     func(ctx context.Context) (AppInstallations, error)
+	GetUserAppReposFunc             func(ctx context.Context, instID int64) ([]string, error)
+	GetUserFunc                     func(ctx context.Context) (string, error)
+	GetUserAppRepoPermissionsFunc   func(ctx context.Context, instID int64) (map[string]AppRepoPermissions, error)
+	GetRepoArchiveFunc              func(ctx context.Context, repo, ref string) (string, error)
+	GetInstallationTokenForRepoFunc func(ctx context.Context, instID int64, reponame string) (string, error)
 }
 
 var _ RepoClient = &FakeRepoClient{}
@@ -107,9 +107,9 @@ func (frc *FakeRepoClient) GetRepoArchive(ctx context.Context, repo, ref string)
 	return "foo.tar.gz", nil
 }
 
-func (frc *FakeRepoClient) GetInstallationToken(ctx context.Context, instID int64) (string, error) {
-	if frc.GetInstallationTokenFunc != nil {
-		return frc.GetInstallationTokenFunc(ctx, instID)
+func (frc *FakeRepoClient) GetInstallationTokenForRepo(ctx context.Context, instID int64, reponame string) (string, error) {
+	if frc.GetInstallationTokenForRepoFunc != nil {
+		return frc.GetInstallationTokenForRepoFunc(ctx, instID, reponame)
 	}
 	return "asdf", nil
 }
