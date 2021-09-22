@@ -14,10 +14,10 @@ import (
 	kubernetestrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/k8s.io/client-go/kubernetes"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 	"helm.sh/helm/v3/pkg/action"
+	"helm.sh/helm/v3/pkg/strvals"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/restmapper"
-	"k8s.io/helm/pkg/strvals"
 
 	"github.com/dollarshaveclub/acyl/pkg/config"
 	"github.com/dollarshaveclub/acyl/pkg/eventlogger"
@@ -79,8 +79,8 @@ type MetahelmManagerFactoryFunc func(ctx context.Context, kc kubernetes.Interfac
 const (
 	DefaultHelmDriver       = "secrets"
 	MaxPodContainerLogLines = 1000
-	DefaultRestConfigQPS    = 50.0
-	DefaultRestConfigBurst  = 100
+	DefaultRestConfigQPS    = 100000
+	DefaultRestConfigBurst  = 100000
 )
 
 // ChartInstaller is an object that manages namespaces and install/upgrades/deletes metahelm chart graphs
