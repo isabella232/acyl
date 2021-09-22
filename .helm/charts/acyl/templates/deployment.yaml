@@ -61,6 +61,11 @@ spec:
         {{ end }}
           - "--furan-addrs"
           - "{{ .Values.app.furan_addr }}"
+        {{ if .Values.app.furan2.enabled }}
+          - "--use-furan2"
+          - "--furan2-addr"
+          - "{{ .Values.app.furan2.addr }}"
+        {{ end }}
           - "--secrets-backend"
           - "{{ .Values.app.secrets_backend }}"
           - "--secrets-mapping"
@@ -161,6 +166,11 @@ spec:
               secretKeyRef:
                 name: dummy-acyl-secrets
                 key: image_pull_secret
+          - name: ACYL_FURAN2_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: dummy-acyl-secrets
+                key: furan2_api_key
           # ------- GitHub App Secrets ----------
           - name: ACYL_GITHUB_APP_ID
             valueFrom:
