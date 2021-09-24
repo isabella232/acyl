@@ -143,7 +143,7 @@ func (ghc *GitHubClient) GetUserAppRepoPermissions(ctx context.Context, instID i
 // This app installation must have access to repo or the call will return an error.
 func (ghc *GitHubClient) GetInstallationTokenForRepo(ctx context.Context, instID int64, reponame string) (string, error) {
 	// get repo id
-	rs := strings.SplitN(reponame, "/", 1)
+	rs := strings.SplitN(reponame, "/", 2)
 	if len(rs) != 2 {
 		return "", fmt.Errorf("malformed repo name (expected: [owner]/[name]): %v", reponame)
 	}
