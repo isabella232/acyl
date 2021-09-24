@@ -310,6 +310,9 @@ func server(cmd *cobra.Command, args []string) {
 			api.WithIPWhitelist(serverConfig.DebugEndpointsIPWhitelists),
 		)
 	}
+	if !githubConfig.OAuth.Enforce {
+		regops = append(regops, api.WithUIDummySessionUser(mockUser))
+	}
 
 	if err := httpapi.RegisterVersions(deps, regops...); err != nil {
 		log.Fatalf("error registering api versions: %v", err)

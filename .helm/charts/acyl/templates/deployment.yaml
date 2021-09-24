@@ -59,12 +59,13 @@ spec:
           - "--dogstatsd-tags"
           - "{{ .Values.app.metrics_tags }}"
         {{ end }}
-          - "--furan-addrs"
-          - "{{ .Values.app.furan_addr }}"
         {{ if .Values.app.furan2.enabled }}
           - "--use-furan2"
           - "--furan2-addr"
           - "{{ .Values.app.furan2.addr }}"
+        {{ else }}
+          - "--furan-addrs"
+          - "{{ .Values.app.furan_addr }}"
         {{ end }}
           - "--secrets-backend"
           - "{{ .Values.app.secrets_backend }}"
@@ -100,9 +101,7 @@ spec:
           {{ end }}
           - "--ui-branding"
           - '{{ .Values.app.ui.branding | toJson }}'
-          {{ if .Values.app.ui.enforce_oauth }}
-          - "--ui-enforce-oauth"
-          {{ end }}
+          - "--ui-enforce-oauth={{ .Values.app.ui.enforce_oauth }}"
         ports:
         - containerPort: {{ .Values.service.internalPort }}
         livenessProbe:
