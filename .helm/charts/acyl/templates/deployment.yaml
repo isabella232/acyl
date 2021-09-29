@@ -61,6 +61,7 @@ spec:
         {{ end }}
         {{ if .Values.app.furan2.enabled }}
           - "--use-furan2"
+          - "--furan2-disable-tls-verification={{ .Values.app.furan2.disable_tls_verification }}"
           - "--furan2-addr"
           - "{{ .Values.app.furan2.addr }}"
         {{ else }}

@@ -21,6 +21,7 @@ type ServerConfig struct {
 	EnableFuran2               bool
 	Furan2Addr                 string
 	Furan2APIKey               string
+	Furan2SkipVerifyTLS        bool
 	APIKeys                    []string
 	ReaperIntervalSecs         uint
 	EventRateLimitPerSecond    uint
