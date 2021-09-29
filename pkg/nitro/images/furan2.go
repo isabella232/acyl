@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"path/filepath"
+	"strings"
 
 	"github.com/dollarshaveclub/acyl/pkg/eventlogger"
 	"github.com/dollarshaveclub/acyl/pkg/ghclient"
@@ -17,13 +19,13 @@ type Furan2BuilderBackend struct {
 	dl          persistence.DataLayer
 	mc          metrics.Collector
 	rb          *furan.RemoteBuilder
-	rc          ghclient.GitHubAppInstallationClient
+	rac         ghclient.RepoAppClient
 	ghappInstID int64
 }
 
 var _ BuilderBackend = &Furan2BuilderBackend{}
 
-func NewFuran2BuilderBackend(addr, apikey string, ghappInstID int64, skipVerifyTLS bool, dl persistence.DataLayer, rc ghclient.GitHubAppInstallationClient, mc metrics.Collector) (*Furan2BuilderBackend, error) {
+func NewFuran2BuilderBackend(addr, apikey string, ghappInstID int64, skipVerifyTLS bool, dl persistence.DataLayer, rac ghclient.RepoAppClient, mc metrics.Collector) (*Furan2BuilderBackend, error) {
 	rb, err := furan.New(furan.Options{
 		Address:               addr,
 		APIKey:                apikey,
@@ -36,7 +38,7 @@ func NewFuran2BuilderBackend(addr, apikey string, ghappInstID int64, skipVerifyT
 		dl:          dl,
 		mc:          mc,
 		rb:          rb,
-		rc:          rc,
+		rac:         rac,
 		ghappInstID: ghappInstID,
 	}, nil
 }
@@ -44,15 +46,19 @@ func NewFuran2BuilderBackend(addr, apikey string, ghappInstID int64, skipVerifyT
 // BuildImage synchronously builds the image using Furan, returning when the build completes.
 func (fib *Furan2BuilderBackend) BuildImage(ctx context.Context, envName, githubRepo, imageRepo, ref string, ops BuildOptions) error {
 	logger := eventlogger.GetLogger(ctx)
-	if ops.DockerfilePath == "" {
-		ops.DockerfilePath = "Dockerfile"
+
+	// Furan 2 (via BuildKit) only supports image builds with files named "Dockerfile" or "dockerfile"
+	if ops.DockerfilePath != "" && !strings.Contains(ops.DockerfilePath, "Dockerfile") && !strings.Contains(ops.DockerfilePath, "dockerfile") {
+		return fmt.Errorf("image build requires a file named Dockerfile or dockerfile")
 	}
+	ops.DockerfilePath = filepath.Dir(ops.DockerfilePath)
+
 	if ops.BuildArgs == nil {
 		ops.BuildArgs = make(map[string]string)
 	}
 	ops.BuildArgs["GIT_COMMIT_SHA"] = ref
 
-	tkn, err := fib.rc.GetInstallationTokenForRepo(ctx, fib.ghappInstID, githubRepo)
+	tkn, err := fib.rac.GetInstallationTokenForRepo(ctx, fib.ghappInstID, githubRepo)
 	if err != nil {
 		return fmt.Errorf("error creating github app installation token: %w", err)
 	}
