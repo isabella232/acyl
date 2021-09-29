@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -219,9 +220,18 @@ func injectAcylSecrets(kc *kubernetes.Clientset, ns string) {
 		ferr("error getting acyl secret: %v", err)
 	}
 
+	s.Data["furan2_api_key"] = []byte(os.Getenv("FURAN2_API_KEY"))
 	s.Data["github_token"] = []byte(getGitHubToken())
 	s.Data["image_pull_secret"] = []byte(getImagePullSecret())
 	s.Data["slack_token"] = []byte(getSlackToken())
+	s.Data["github_app_id"] = []byte(os.Getenv("GITHUB_APP_ID"))
+	s.Data["github_app_oauth_installation_id"] = []byte(os.Getenv("GITHUB_APP_INSTALLATION_ID"))
+	// base64 decode because k8s will re-encode
+	data, err := base64.StdEncoding.DecodeString(os.Getenv("GITHUB_APP_PRIVATE_KEY"))
+	if err != nil {
+		ferr("error decoding github app private key: %v", err)
+	}
+	s.Data["github_app_private_key"] = data
 
 	fmt.Println("updating acyl secrets")
 	if _, err := kc.CoreV1().Secrets(ns).Update(context.Background(), s, metav1.UpdateOptions{}); err != nil {
