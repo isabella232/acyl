@@ -113,7 +113,7 @@ func TestFuran2ImageBackendBuildImage(t *testing.T) {
 
 	dl := persistence.NewFakeDataLayer()
 	mc := &metrics.FakeCollector{}
-	rc := &ghclient.FakeRepoClient{}
+	rc := &ghclient.FakeRepoAppClient{}
 
 	fbb, err := NewFuran2BuilderBackend(l.Addr().String(), "asdf", 1, true, dl, rc, mc)
 	if err != nil {
