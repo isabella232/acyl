@@ -873,7 +873,9 @@ func (ci ChartInstaller) cleanUpNamespace(ctx context.Context, ns, envname strin
 	// Delete in background so that we can release the lock as soon as possible
 	bg := metav1.DeletePropagationBackground
 	ci.log(ctx, "deleting namespace: %v", ns)
-	if err := ci.kc.CoreV1().Namespaces().Delete(ctx, ns, metav1.DeleteOptions{GracePeriodSeconds: &zero, PropagationPolicy: &bg}); err != nil {
+	// the context might be cancelled so use a new one for k8s resource deletion
+	ctx2 := context.Background()
+	if err := ci.kc.CoreV1().Namespaces().Delete(ctx2, ns, metav1.DeleteOptions{GracePeriodSeconds: &zero, PropagationPolicy: &bg}); err != nil {
 		// If the namespace is not found, we do not need to return the error as there is nothing to delete
 		if !k8serrors.IsNotFound(err) {
 			return fmt.Errorf("error deleting namespace: %w", err)
@@ -881,7 +883,7 @@ func (ci ChartInstaller) cleanUpNamespace(ctx context.Context, ns, envname strin
 	}
 	if privileged {
 		ci.log(ctx, "deleting privileged ClusterRoleBinding: %v", clusterRoleBindingName(envname))
-		if err := ci.kc.RbacV1().ClusterRoleBindings().Delete(ctx, clusterRoleBindingName(envname), metav1.DeleteOptions{}); err != nil {
+		if err := ci.kc.RbacV1().ClusterRoleBindings().Delete(ctx2, clusterRoleBindingName(envname), metav1.DeleteOptions{}); err != nil {
 			ci.log(ctx, "error cleaning up cluster role binding (privileged repo): %v", err)
 		}
 	}
