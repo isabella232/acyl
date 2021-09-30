@@ -31,6 +31,7 @@ dependencies:
     - repo: dollarshaveclub/furan
       name: furan
       value_overrides:
+        - 'app.builder_image='
         - "vault.address=http://dollarshaveclub-furan-vault:8200"
     - chart_repo_path: 'kubernetes/charts@9e28c906fc7a8e62e77a0743cd4b3bd38fbba008:stable/postgresql'
       chart_vars_repo_path: 'kubernetes/charts@9e28c906fc7a8e62e77a0743cd4b3bd38fbba008:stable/postgresql/values.yaml'
