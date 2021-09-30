@@ -2,7 +2,7 @@
 
 # Port forwards an Acyl pod in a local minikube environment and tails logs
 
-NS=$(kubectl get ns --output=jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' |grep -e '^nitro\-')
+NS=$(kubectl get ns --field-selector=status.phase=Active --output=jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' |grep -e '^nitro\-')
 if [[ -z "${NS}" || $(echo "${NS}" |wc -l) -ne 1 ]]; then
   echo "empty or multiple matching namespaces: ${NS}"
   exit 1
