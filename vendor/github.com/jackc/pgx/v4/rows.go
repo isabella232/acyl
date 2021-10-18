@@ -42,8 +42,7 @@ type Rows interface {
 
 	// Scan reads the values from the current row into dest values positionally.
 	// dest can include pointers to core types, values implementing the Scanner
-	// interface, []byte, and nil. []byte will skip the decoding process and directly
-	// copy the raw bytes received from PostgreSQL. nil will skip the value entirely.
+	// interface, and nil. nil will skip the value entirely.
 	Scan(dest ...interface{}) error
 
 	// Values returns the decoded row values.
@@ -107,6 +106,7 @@ type connRows struct {
 	sql        string
 	args       []interface{}
 	closed     bool
+	conn       *Conn
 
 	resultReader      *pgconn.ResultReader
 	multiResultReader *pgconn.MultiResultReader
@@ -146,8 +146,13 @@ func (rows *connRows) Close() {
 				endTime := time.Now()
 				rows.logger.log(rows.ctx, LogLevelInfo, "Query", map[string]interface{}{"sql": rows.sql, "args": logQueryArgs(rows.args), "time": endTime.Sub(rows.startTime), "rowCount": rows.rowCount})
 			}
-		} else if rows.logger.shouldLog(LogLevelError) {
-			rows.logger.log(rows.ctx, LogLevelError, "Query", map[string]interface{}{"err": rows.err, "sql": rows.sql, "args": logQueryArgs(rows.args)})
+		} else {
+			if rows.logger.shouldLog(LogLevelError) {
+				rows.logger.log(rows.ctx, LogLevelError, "Query", map[string]interface{}{"err": rows.err, "sql": rows.sql, "args": logQueryArgs(rows.args)})
+			}
+			if rows.err != nil && rows.conn.stmtcache != nil {
+				rows.conn.stmtcache.StatementErrored(rows.sql, rows.err)
+			}
 		}
 	}
 }
@@ -204,10 +209,7 @@ func (rows *connRows) Scan(dest ...interface{}) error {
 
 	if rows.scanPlans == nil {
 		rows.scanPlans = make([]pgtype.ScanPlan, len(values))
-		for i, dst := range dest {
-			if dst == nil {
-				continue
-			}
+		for i := range dest {
 			rows.scanPlans[i] = ci.PlanScan(fieldDescriptions[i].DataTypeOID, fieldDescriptions[i].Format, dest[i])
 		}
 	}
