@@ -17,7 +17,7 @@ ALTER TABLE helm_releases DROP CONSTRAINT helm_releases_env_name_fkey;
 UPDATE helm_releases T SET environment_id = (SELECT id FROM qa_environments WHERE name = T.env_name);
 ALTER TABLE helm_releases
     ADD CONSTRAINT helm_releases_env_id_fkey FOREIGN KEY (environment_id) REFERENCES qa_environments (id) ON DELETE CASCADE;
-CREATE UNIQUE INDEX IF NOT EXISTS idx_helm_releases_envname ON helm_releases
+CREATE INDEX IF NOT EXISTS idx_helm_releases_envname ON helm_releases
     ( env_name );
 
 -- -- change primary key on qa_environments
@@ -26,3 +26,9 @@ ALTER TABLE qa_environments ADD PRIMARY KEY (id);
 ALTER TABLE qa_environments ADD UNIQUE (name);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_qa_environments_name ON qa_environments
     ( name );
+
+-- add back in foreign keys on name so inserts with unknown envs fail
+ALTER TABLE helm_releases
+ADD CONSTRAINT helm_releases_env_name_fkey FOREIGN KEY (env_name) REFERENCES qa_environments (name) ON DELETE CASCADE;
+ALTER TABLE kubernetes_environments
+ADD CONSTRAINT kubernetes_environments_env_name_fkey FOREIGN KEY (env_name) REFERENCES qa_environments (name) ON DELETE CASCADE;
