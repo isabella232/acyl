@@ -98,8 +98,8 @@ func (p *PGLayer) CreateQAEnvironment(ctx context.Context, qae *QAEnvironment) e
 		return fmt.Errorf("error setting raw fields: %v", err)
 	}
 
-	q := `INSERT into qa_environments (` + qae.Columns() + `) VALUES (` + qae.InsertParams() + `);`
-	if _, err := p.db.ExecContext(ctx, q, qae.ScanValues()...); err != nil {
+	q := `INSERT into qa_environments (` + qae.InsertColumns() + `) VALUES (` + qae.InsertParams() + `);`
+	if _, err := p.db.ExecContext(ctx, q, qae.InsertValues()...); err != nil {
 		return errors.Wrapf(err, "error inserting QAEnvironment into database")
 	}
 	return nil
