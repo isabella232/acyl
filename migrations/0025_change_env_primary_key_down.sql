@@ -5,6 +5,8 @@ ALTER TABLE helm_releases
     DROP CONSTRAINT helm_releases_env_name_fkey;
 ALTER TABLE kubernetes_environments
     DROP CONSTRAINT kubernetes_environments_env_name_fkey;
+ALTER TABLE event_logs
+    DROP CONSTRAINT event_logs_env_name_fkey;
 
 DROP INDEX IF EXISTS idx_helm_releases_envname;
 ALTER TABLE helm_releases
