@@ -33,6 +33,17 @@ ALTER TABLE helm_releases
 ALTER TABLE kubernetes_environments
     ADD CONSTRAINT kubernetes_environments_env_name_fkey FOREIGN KEY (env_name) REFERENCES qa_environments (name) ON UPDATE CASCADE ON DELETE CASCADE;
 
+-- clean up event logs for the fk constraint
+-- save modified rows in new tables so we can reverse this migration if needed
+CREATE TABLE event_logs_empty_names AS (
+    SELECT * FROM event_logs WHERE env_name = ''
+);
+CREATE TABLE event_logs_orphans AS (
+  SELECT * FROM event_logs WHERE env_name NOT IN (SELECT name FROM qa_environments)
+);
+UPDATE event_logs SET env_name = null WHERE env_name = '';
+DELETE FROM event_logs WHERE env_name NOT IN (SELECT name FROM qa_environments);
+
 -- add additional fk constraint on event logs so it cascades on update
 ALTER TABLE event_logs
     ADD CONSTRAINT event_logs_env_name_fkey FOREIGN KEY (env_name) REFERENCES qa_environments (name) ON UPDATE CASCADE ON DELETE CASCADE;

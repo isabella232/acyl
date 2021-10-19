@@ -8,6 +8,12 @@ ALTER TABLE kubernetes_environments
 ALTER TABLE event_logs
     DROP CONSTRAINT event_logs_env_name_fkey;
 
+UPDATE event_logs SET env_name = '' WHERE id IN (SELECT id FROM event_logs_empty_names);
+INSERT INTO event_logs (SELECT * FROM event_logs_orphans);
+
+DROP TABLE event_logs_empty_names;
+DROP TABLE event_logs_orphans;
+
 DROP INDEX IF EXISTS idx_helm_releases_envname;
 ALTER TABLE helm_releases
     DROP CONSTRAINT helm_releases_env_id_fkey;
