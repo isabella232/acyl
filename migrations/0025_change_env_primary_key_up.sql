@@ -3,22 +3,9 @@
 
 ALTER TABLE qa_environments ADD COLUMN id bigserial UNIQUE NOT NULL;
 
---drop constraint on foreign key tables and set new fk
-ALTER TABLE kubernetes_environments ADD COLUMN environment_id bigint;
+--drop constraint on foreign key tables
 ALTER TABLE kubernetes_environments DROP CONSTRAINT kubernetes_environments_env_name_fkey;
-UPDATE kubernetes_environments T SET environment_id = (SELECT id FROM qa_environments WHERE name = T.env_name);
-ALTER TABLE kubernetes_environments
-    ADD CONSTRAINT kubernetes_environments_env_id_fkey FOREIGN KEY (environment_id) REFERENCES qa_environments (id) ON UPDATE CASCADE ON DELETE CASCADE;
-CREATE UNIQUE INDEX IF NOT EXISTS idx_kubernetes_environments_envname ON kubernetes_environments
-    ( env_name );
-
-ALTER TABLE helm_releases ADD COLUMN environment_id bigint;
 ALTER TABLE helm_releases DROP CONSTRAINT helm_releases_env_name_fkey;
-UPDATE helm_releases T SET environment_id = (SELECT id FROM qa_environments WHERE name = T.env_name);
-ALTER TABLE helm_releases
-    ADD CONSTRAINT helm_releases_env_id_fkey FOREIGN KEY (environment_id) REFERENCES qa_environments (id) ON UPDATE CASCADE ON DELETE CASCADE;
-CREATE INDEX IF NOT EXISTS idx_helm_releases_envname ON helm_releases
-    ( env_name );
 
 -- -- change primary key on qa_environments
 ALTER TABLE qa_environments DROP CONSTRAINT qa_environments_pkey;
@@ -29,21 +16,33 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_qa_environments_name ON qa_environments
 
 -- add back in foreign keys on name so inserts with unknown envs fail and name changes cascade
 ALTER TABLE helm_releases
-    ADD CONSTRAINT helm_releases_env_name_fkey FOREIGN KEY (env_name) REFERENCES qa_environments (name) ON UPDATE CASCADE ON DELETE CASCADE;
+    ADD CONSTRAINT helm_releases_env_name_fkey
+        FOREIGN KEY (env_name) REFERENCES qa_environments (name)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE;
+CREATE INDEX IF NOT EXISTS idx_helm_releases_envname ON helm_releases
+    ( env_name );
 ALTER TABLE kubernetes_environments
-    ADD CONSTRAINT kubernetes_environments_env_name_fkey FOREIGN KEY (env_name) REFERENCES qa_environments (name) ON UPDATE CASCADE ON DELETE CASCADE;
+    ADD CONSTRAINT kubernetes_environments_env_name_fkey
+        FOREIGN KEY (env_name) REFERENCES qa_environments (name)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_kubernetes_environments_envname ON kubernetes_environments
+    ( env_name );
 
 -- clean up event logs for the fk constraint
--- save modified rows in new tables so we can reverse this migration if needed
-CREATE TABLE event_logs_empty_names AS (
-    SELECT * FROM event_logs WHERE env_name = ''
-);
+-- save dropped rows in new table so we can reverse this migration if needed
 CREATE TABLE event_logs_orphans AS (
-  SELECT * FROM event_logs WHERE env_name NOT IN (SELECT name FROM qa_environments)
+  SELECT * FROM event_logs WHERE env_name != '' AND (env_name NOT IN (SELECT name FROM qa_environments))
 );
+DELETE FROM event_logs WHERE env_name != '' AND (env_name NOT IN (SELECT name FROM qa_environments));
 UPDATE event_logs SET env_name = null WHERE env_name = '';
-DELETE FROM event_logs WHERE env_name NOT IN (SELECT name FROM qa_environments);
 
 -- add additional fk constraint on event logs so it cascades on update
 ALTER TABLE event_logs
-    ADD CONSTRAINT event_logs_env_name_fkey FOREIGN KEY (env_name) REFERENCES qa_environments (name) ON UPDATE CASCADE ON DELETE CASCADE;
+    ADD CONSTRAINT event_logs_env_name_fkey
+        FOREIGN KEY (env_name) REFERENCES qa_environments (name)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE;
+CREATE INDEX IF NOT EXISTS idx_event_logs_env_name ON event_logs
+    ( env_name );
