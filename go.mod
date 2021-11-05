@@ -10,23 +10,22 @@ require (
 	github.com/bradleyfalzon/ghinstallation/v2 v2.0.3
 	github.com/docker/cli v20.10.7+incompatible
 	github.com/docker/distribution v2.7.1+incompatible
-	github.com/docker/docker v20.10.2+incompatible
+	github.com/docker/docker v20.10.9+incompatible
 	github.com/dollarshaveclub/furan v0.6.1-0.20210604153750-8def5a45ce21
 	github.com/dollarshaveclub/furan/v2 v2.0.1
 	github.com/dollarshaveclub/line v0.0.0-20171219191008-fc7a351a8b58
 	github.com/dollarshaveclub/metahelm v0.7.2
 	github.com/dollarshaveclub/pvc v1.0.0
-	github.com/emirpasic/gods v1.12.0 // indirect
 	github.com/gdamore/tcell v1.1.1
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-pg/pg v6.6.7+incompatible
-	github.com/golang/mock v1.5.0
-	github.com/golang/snappy v0.0.3 // indirect
+	github.com/golang-migrate/migrate/v4 v4.15.1 // indirect
+	github.com/golang/mock v1.6.0
 	github.com/google/go-cmp v0.5.6
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/google/go-github/v30 v30.1.0 // indirect
 	github.com/google/go-github/v38 v38.1.0
-	github.com/google/uuid v1.2.0
+	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/securecookie v1.1.1
 	github.com/gorilla/sessions v1.2.1
@@ -36,8 +35,7 @@ require (
 	github.com/hashicorp/go-retryablehttp v0.6.8 // indirect
 	github.com/hashicorp/vault/api v1.0.5-0.20210318200847-4cf7593de37a // indirect
 	github.com/hashicorp/vault/sdk v0.1.14-0.20210318200847-4cf7593de37a // indirect
-	github.com/imdario/mergo v0.3.11
-	github.com/jinzhu/inflection v0.0.0-20170102125226-1c35d901db3d // indirect
+	github.com/imdario/mergo v0.3.12
 	github.com/jmoiron/sqlx v1.3.1
 	github.com/kevinburke/ssh_config v1.1.0 // indirect
 	github.com/lib/pq v1.10.0
@@ -58,11 +56,10 @@ require (
 	github.com/ulikunitz/xz v0.5.8 // indirect
 	github.com/xanzy/ssh-agent v0.3.1 // indirect
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
-	golang.org/x/net v0.0.0-20210928044308-7d9f5e0b762b
-	golang.org/x/oauth2 v0.0.0-20210402161424-2e8d93401602
+	golang.org/x/net v0.0.0-20211013171255-e13a2654a71e
+	golang.org/x/oauth2 v0.0.0-20210628180205-a41e5a781914
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/sys v0.0.0-20210927094055-39ccf1dd6fa6 // indirect
-	google.golang.org/grpc v1.38.0
+	google.golang.org/grpc v1.41.0
 	gopkg.in/DataDog/dd-trace-go.v1 v1.29.0
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
 	gopkg.in/jfontan/go-billy-desfacer.v0 v0.0.0-20190109211405-e5f0f2cddac1

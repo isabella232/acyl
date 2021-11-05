@@ -190,8 +190,13 @@ func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
 			return cr, nil
 		},
 		func(value interface{}) {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			value.(*connResource).conn.Close(ctx)
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			conn := value.(*connResource).conn
+			conn.Close(ctx)
+			select {
+			case <-conn.PgConn().CleanupDone():
+			case <-ctx.Done():
+			}
 			cancel()
 		},
 		config.MaxConns,
@@ -423,6 +428,16 @@ func (p *Pool) QueryRow(ctx context.Context, sql string, args ...interface{}) pg
 
 	row := c.QueryRow(ctx, sql, args...)
 	return c.getPoolRow(row)
+}
+
+func (p *Pool) QueryFunc(ctx context.Context, sql string, args []interface{}, scans []interface{}, f func(pgx.QueryFuncRow) error) (pgconn.CommandTag, error) {
+	c, err := p.Acquire(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer c.Release()
+
+	return c.QueryFunc(ctx, sql, args, scans, f)
 }
 
 func (p *Pool) SendBatch(ctx context.Context, b *pgx.Batch) pgx.BatchResults {

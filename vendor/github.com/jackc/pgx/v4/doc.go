@@ -82,6 +82,23 @@ Use Exec to execute a query that does not return a result set.
         return errors.New("No row found to delete")
     }
 
+QueryFunc can be used to execute a callback function for every row. This is often easier to use than Query.
+
+    var sum, n int32
+	_, err = conn.QueryFunc(
+		context.Background(),
+		"select generate_series(1,$1)",
+		[]interface{}{10},
+		[]interface{}{&n},
+		func(pgx.QueryFuncRow) error {
+            sum += n
+			return nil
+		},
+	)
+	if err != nil {
+		return err
+	}
+
 Base Type Mapping
 
 pgx maps between all common base types directly between Go and PostgreSQL. In particular:
@@ -146,7 +163,7 @@ from a net.IP; it will assume a /32 netmask for IPv4 and a /128 for IPv6.
 Custom Type Support
 
 pgx includes support for the common data types like integers, floats, strings, dates, and times that have direct
-mappings between Go and SQL. In addition, pgx uses the github.com/jackc/pgx/pgtype library to support more types. See
+mappings between Go and SQL. In addition, pgx uses the github.com/jackc/pgtype library to support more types. See
 documention for that library for instructions on how to implement custom types.
 
 See example_custom_type_test.go for an example of a custom type for the PostgreSQL point type.
@@ -258,6 +275,22 @@ interface. Or implement CopyFromSource to avoid buffering the entire data set in
         pgx.Identifier{"people"},
         []string{"first_name", "last_name", "age"},
         pgx.CopyFromRows(rows),
+    )
+
+When you already have a typed array using CopyFromSlice can be more convenient.
+
+    rows := []User{
+        {"John", "Smith", 36},
+        {"Jane", "Doe", 29},
+    }
+
+    copyCount, err := conn.CopyFrom(
+        context.Background(),
+        pgx.Identifier{"people"},
+        []string{"first_name", "last_name", "age"},
+        pgx.CopyFromSlice(len(rows), func(i int) ([]interface{}, error) {
+            return []interface{user.FirstName, user.LastName, user.Age}, nil
+        }),
     )
 
 CopyFrom can be faster than an insert with as few as 5 rows.

@@ -1,3 +1,36 @@
+# 4.10.1 (December 19, 2020)
+
+* Fix panic on Query error with nil stmtcache.
+
+# 4.10.0 (December 3, 2020)
+
+* Add CopyFromSlice to simplify CopyFrom usage (Egon Elbre)
+* Remove broken prepared statements from stmtcache (Ethan Pailes)
+* stdlib: consider any Ping error as fatal
+* Update puddle to v1.1.3 - this fixes an issue where concurrent Acquires can hang when a connection cannot be established
+* Update pgtype to v1.6.2
+
+# 4.9.2 (November 3, 2020)
+
+The underlying library updates fix an issue where appending to a scanned slice could corrupt other data.
+
+* Update pgconn to v1.7.2
+* Update pgproto3 to v2.0.6
+
+# 4.9.1 (October 31, 2020)
+
+* Update pgconn to v1.7.1
+* Update pgtype to v1.6.1
+* Fix SendBatch of all prepared statements with statement cache disabled
+
+# 4.9.0 (September 26, 2020)
+
+* pgxpool now waits for connection cleanup to finish before making room in pool for another connection. This prevents temporarily exceeding max pool size.
+* Fix when scanning a column to nil to skip it on the first row but scanning it to a real value on a subsequent row.
+* Fix prefer simple protocol with prepared statements. (Jinzhu)
+* Fix FieldDescriptions not being available on Rows before calling Next the first time.
+* Various minor fixes in updated versions of pgconn, pgtype, and puddle.
+
 # 4.8.1 (July 29, 2020)
 
 * Update pgconn to v1.6.4
