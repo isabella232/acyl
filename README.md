@@ -61,3 +61,20 @@ For more details, see [Local Development](https://github.com/dollarshaveclub/acy
 ## Further Reading
 - [User Guide](https://github.com/dollarshaveclub/acyl/wiki/User-Guide)
 - [acyl.yml v2 Specification](https://github.com/dollarshaveclub/acyl/wiki/Acyl.yml-V2-Specification)
+
+## Build Troubleshooting
+
+```
+running "stringer": exec: "stringer": executable file not found in $PATH
+```
+**Solution:** You need to install the `stringer` package:
+```bash
+go install golang.org/x/tools/cmd/stringer@latest
+```
+
+> Help! I installed the stringer package but I'm still getting an error message!
+
+**Solution:** You need to add your `$GOPATH/bin` directory to your `$PATH`:
+```bash
+export PATH=$PATH:$(go env GOPATH)/bin
+```
